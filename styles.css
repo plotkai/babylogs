@@ -38,10 +38,12 @@
   --transition-normal: 250ms ease;
   --transition-spring: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  --header-height: 56px;
+  --header-base-height: 56px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --header-height: calc(var(--header-base-height) + var(--safe-top));
   --ad-banner-height: 60px;
   --fab-size: 56px;
-  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* ==================== DARK MODE ==================== */
@@ -121,7 +123,7 @@ body {
   color: #FFFFFF;
   display: flex;
   align-items: center;
-  padding: 0 12px;
+  padding: var(--safe-top) 12px 0 12px;
   z-index: 100;
   box-shadow: 0 2px 8px rgba(76, 31, 122, 0.2);
 }
@@ -800,7 +802,7 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 40px 24px;
+  padding: calc(40px + var(--safe-top)) 24px calc(40px + var(--safe-bottom));
   text-align: center;
   background: linear-gradient(160deg, var(--color-primary) 0%, #2D1050 50%, #1A0A35 100%);
   color: #FFFFFF;
@@ -903,7 +905,7 @@ body {
 }
 
 .sidebar__header {
-  padding: 24px 20px 16px;
+  padding: calc(24px + var(--safe-top)) 20px 16px;
   background: linear-gradient(135deg, var(--color-primary), #2D1050);
   color: #FFFFFF;
 }
