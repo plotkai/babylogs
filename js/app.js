@@ -140,8 +140,15 @@ async function renderMain() {
 
     <!-- Ad Banner -->
     ${adConfig.enabled ? `
-    <div class="ad-banner" id="ad-banner-slot" style="height: ${adConfig.height}">
-      ${adConfig.adSlotId ? '' : adConfig.placeholder}
+    <div class="ad-banner" id="ad-banner-slot">
+      ${adConfig.adClient && adConfig.adSlotId ? `
+        <ins class="adsbygoogle"
+             style="display:block"
+             data-ad-client="${adConfig.adClient}"
+             data-ad-slot="${adConfig.adSlotId}"
+             data-ad-format="auto"
+             data-full-width-responsive="true"></ins>
+      ` : (adConfig.placeholder || '')}
     </div>
     ` : '<div style="margin-top: var(--header-height)"></div>'}
 
@@ -232,6 +239,21 @@ async function renderMain() {
 
   // Render sidebar menu
   renderSidebar();
+
+  // Initialize Google AdSense
+  initAdBanner();
+}
+
+function initAdBanner() {
+  try {
+    const adEl = document.querySelector('#ad-banner-slot .adsbygoogle');
+    if (adEl && !adEl.getAttribute('data-adsbygoogle-status')) {
+      (window.adsbygoogle = window.adsbygoogle || []).push({});
+    }
+  } catch (err) {
+    // Graceful fallback if blocked by adblocker / offline
+    console.log('AdSense init info:', err);
+  }
 }
 
 function bindMainEvents() {

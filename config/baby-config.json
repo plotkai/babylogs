@@ -258,10 +258,10 @@
   },
   "adBanner": {
     "enabled": true,
-    "height": "60px",
-    "adSlotId": "",
-    "adClient": "",
-    "placeholder": "Ad Space"
+    "height": "auto",
+    "adSlotId": "5961398919",
+    "adClient": "ca-pub-3660780299197648",
+    "placeholder": ""
   },
   "app": {
     "title": "Babylogs by Plotkai",
