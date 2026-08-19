@@ -359,7 +359,7 @@ export async function exportAllData() {
   return {
     version: '1.0.0',
     exportDate: new Date().toISOString(),
-    app: 'Babylog by Plotkai',
+    app: 'Babylogs by Plotkai',
     profiles,
     settings,
     activities

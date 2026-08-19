@@ -43,8 +43,8 @@ export function importJSON() {
         if (!data.profiles || !data.activities) {
           throw new Error('Invalid backup file: missing profiles or activities data');
         }
-        if (data.app !== 'Babylog by Plotkai') {
-          console.warn('Backup file may not be from Babylog');
+        if (data.app !== 'Babylogs by Plotkai' && data.app !== 'Babylog by Plotkai') {
+          console.warn('Backup file may not be from Babylogs');
         }
 
         await importAllData(data);

@@ -152,6 +152,6 @@ function getDefaultConfig() {
     },
     notifications: { feedReminderDefault: 180, reminderOptions: [120, 180, 240] },
     adBanner: { enabled: true, height: '60px', adSlotId: '', adClient: '', placeholder: 'Ad Space' },
-    app: { title: 'Babylog by Plotkai', version: '1.0.0' }
+    app: { title: 'Babylogs by Plotkai', version: '1.0.0' }
   };
 }

@@ -1,6 +1,6 @@
 {
-  "name": "Babylog by Plotkai",
-  "short_name": "Babylog",
+  "name": "Babylogs by Plotkai",
+  "short_name": "Babylogs",
   "description": "Track your baby's feeds, diapers, sleep and more — offline and private",
   "start_url": "./index.html",
   "display": "standalone",
