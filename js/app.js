@@ -13,6 +13,7 @@ let currentDate = new Date();
 let summaryDate = new Date();
 let summaryPeriod = 'day';
 let currentActivities = [];
+let currentEventFilter = '';
 let editingActivity = null;
 let deferredInstallPrompt = null;
 let feedTimerInterval = null;
@@ -126,6 +127,7 @@ async function renderMain() {
   const app = document.getElementById('app');
   const appConfig = getAppConfig();
   const adConfig = getAdBannerConfig();
+  const categories = getActivityCategories();
   const profiles = getProfiles();
   const settings = getSettings();
   const activeBaby = profiles.find(p => p.id === settings.activeBabyId);
@@ -161,7 +163,7 @@ async function renderMain() {
       </div>
       ` : ''}
 
-      <!-- Baby Switcher -->
+      <!-- Baby Switcher with Inline Right Last Feed Timer -->
       <div class="baby-switcher" id="baby-switcher">
         <div class="baby-switcher__current" id="baby-switcher-toggle">
           <div class="baby-switcher__avatar">${activeBaby.name.charAt(0).toUpperCase()}</div>
@@ -170,6 +172,13 @@ async function renderMain() {
             <div class="baby-switcher__age">${getAgeString(activeBaby.dob)} old</div>
           </div>
           <span class="baby-switcher__dropdown-icon" id="switcher-arrow">▼</span>
+        </div>
+
+        <!-- Last Feed Timer floating right -->
+        <div class="last-feed-timer" id="last-feed-timer" title="Tap to log feed">
+          <span class="last-feed-timer__icon">🍼</span>
+          <span class="last-feed-timer__text">Last feed: </span>
+          <span class="last-feed-timer__time" id="feed-timer-value">loading...</span>
         </div>
       </div>
 
@@ -184,11 +193,22 @@ async function renderMain() {
         <button class="date-nav__btn" id="date-next" aria-label="Next day">▶</button>
       </div>
 
-      <!-- Last Feed Timer -->
-      <div class="last-feed-timer" id="last-feed-timer">
-        <span class="last-feed-timer__icon">🍼</span>
-        <span class="last-feed-timer__text">Last feed: </span>
-        <span class="last-feed-timer__time" id="feed-timer-value">loading...</span>
+      <!-- Timeline Event Type Filter Bar -->
+      <div class="timeline-filter-bar" id="timeline-filter-bar">
+        <div class="timeline-filter-bar__wrap">
+          <span class="timeline-filter-bar__icon">⚡</span>
+          <select class="timeline-filter-bar__select" id="timeline-event-filter" aria-label="Filter activities by type">
+            <option value="">All Activities</option>
+            ${Object.entries(categories).map(([catKey, cat]) => `
+              <optgroup label="${cat.icon} ${cat.label}">
+                ${Object.entries(cat.types).map(([typeKey, type]) => `
+                  <option value="${typeKey}" ${typeKey === currentEventFilter ? 'selected' : ''}>${type.emoji || ''} ${type.label}</option>
+                `).join('')}
+              </optgroup>
+            `).join('')}
+          </select>
+        </div>
+        <button class="timeline-filter-bar__clear ${currentEventFilter ? '' : 'hidden'}" id="timeline-filter-clear" aria-label="Clear filter" title="Clear filter">✕</button>
       </div>
 
       <!-- Timeline -->
@@ -289,6 +309,31 @@ function bindMainEvents() {
     updateDateLabel();
   });
 
+  // Timeline Event Filter
+  const filterSelect = document.getElementById('timeline-event-filter');
+  const filterClear = document.getElementById('timeline-filter-clear');
+  if (filterSelect) {
+    filterSelect.addEventListener('change', (e) => {
+      currentEventFilter = e.target.value;
+      if (filterClear) {
+        if (currentEventFilter) {
+          filterClear.classList.remove('hidden');
+        } else {
+          filterClear.classList.add('hidden');
+        }
+      }
+      loadTimeline();
+    });
+  }
+  if (filterClear) {
+    filterClear.addEventListener('click', () => {
+      currentEventFilter = '';
+      if (filterSelect) filterSelect.value = '';
+      filterClear.classList.add('hidden');
+      loadTimeline();
+    });
+  }
+
   // FAB
   document.getElementById('fab').addEventListener('click', () => openActivityModal());
 
@@ -361,9 +406,34 @@ async function loadTimeline() {
   const fab = document.getElementById('fab');
   if (fab) fab.classList.remove('fab--pulse');
 
+  // Filter activities if an event filter is active
+  const displayActivities = currentEventFilter
+    ? currentActivities.filter(a => a.eventType === currentEventFilter)
+    : currentActivities;
+
+  if (displayActivities.length === 0) {
+    const typeConfig = getActivityType(currentEventFilter) || {};
+    timeline.innerHTML = `
+      <div class="timeline__empty">
+        <div class="timeline__empty-icon">${typeConfig.emoji || '🔍'}</div>
+        <div class="timeline__empty-text">No ${typeConfig.label || 'matching'} activities</div>
+        <div class="timeline__empty-hint">No ${typeConfig.label || ''} entries logged for this date</div>
+        <button class="btn btn--secondary btn--sm" id="timeline-empty-clear-btn" style="margin-top: 14px;">Show All Activities</button>
+      </div>
+    `;
+    document.getElementById('timeline-empty-clear-btn')?.addEventListener('click', () => {
+      currentEventFilter = '';
+      const filterSelect = document.getElementById('timeline-event-filter');
+      if (filterSelect) filterSelect.value = '';
+      document.getElementById('timeline-filter-clear')?.classList.add('hidden');
+      loadTimeline();
+    });
+    return;
+  }
+
   const allTypes = getAllActivityTypes();
 
-  timeline.innerHTML = currentActivities.map((activity, i) => {
+  timeline.innerHTML = displayActivities.map((activity, i) => {
     const typeConfig = allTypes[activity.eventType] || {};
     const timeStr = activity.endTime
       ? formatTimeRange(activity.startTime, activity.endTime)
