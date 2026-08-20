@@ -140,7 +140,8 @@ function getDefaultConfig() {
         types: {
           medicine: { label: 'Medicine', color: '#E17055', emoji: '💊', fields: [] },
           temperature: { label: 'Temperature', color: '#FDCB6E', emoji: '🌡️', fields: [] },
-          weight_check: { label: 'Weight Check', color: '#A29BFE', emoji: '⚖️', fields: [] }
+          weight_check: { label: 'Weight Check', color: '#A29BFE', emoji: '⚖️', fields: [] },
+          massage: { label: 'Massage', color: '#FFC8DD', emoji: '💆', fields: [] }
         }
       }
     },

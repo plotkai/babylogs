@@ -48,7 +48,9 @@ export async function computeSummary(babyId, startDate, endDate) {
       playtimeCount: 0,
       playtimeMinutes: 0,
       bathCount: 0,
-      medicineCount: 0
+      medicineCount: 0,
+      massageCount: 0,
+      massageMinutes: 0
     },
     activities // raw data for export
   };
@@ -113,6 +115,10 @@ export async function computeSummary(babyId, startDate, endDate) {
         break;
       case 'medicine':
         summary.other.medicineCount++;
+        break;
+      case 'massage':
+        summary.other.massageCount++;
+        summary.other.massageMinutes += duration;
         break;
     }
   }
