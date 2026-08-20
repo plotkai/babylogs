@@ -143,11 +143,11 @@ async function renderMain() {
     <div class="ad-banner" id="ad-banner-slot">
       ${adConfig.adClient && adConfig.adSlotId ? `
         <ins class="adsbygoogle"
-             style="display:block"
+             style="display:block;height:50px;"
              data-ad-client="${adConfig.adClient}"
              data-ad-slot="${adConfig.adSlotId}"
-             data-ad-format="auto"
-             data-full-width-responsive="true"></ins>
+             data-ad-format="horizontal"
+             data-full-width-responsive="false"></ins>
       ` : (adConfig.placeholder || '')}
     </div>
     ` : '<div style="margin-top: var(--header-height)"></div>'}
