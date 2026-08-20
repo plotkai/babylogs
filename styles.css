@@ -1152,55 +1152,87 @@ body {
 
 /* Expected Performance Bars */
 .perf-metric {
-  margin-bottom: 14px;
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 10px;
 }
 
 .perf-metric__label {
   font-size: 13px;
-  font-weight: 500;
-  margin-bottom: 6px;
+  font-weight: 600;
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
 }
 
-.perf-metric__actual {
-  font-weight: 700;
+.perf-metric__name {
+  color: var(--color-text);
+}
+
+.perf-metric__badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-xl);
+}
+
+.perf-metric__badge--ok {
+  background: rgba(46, 204, 113, 0.15);
+  color: #27ae60;
+}
+
+.perf-metric__badge--above {
+  background: rgba(124, 92, 252, 0.15);
+  color: #7C5CFC;
+}
+
+.perf-metric__badge--progress {
+  background: rgba(255, 128, 0, 0.15);
+  color: var(--color-accent);
+}
+
+.perf-metric__badge--below {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
 }
 
 .perf-metric__bar {
-  height: 8px;
-  background: var(--color-surface-alt);
-  border-radius: 4px;
-  position: relative;
+  height: 6px;
+  background: var(--color-border);
+  border-radius: 3px;
   overflow: hidden;
+  margin-bottom: 8px;
 }
 
 .perf-metric__bar-fill {
   height: 100%;
-  border-radius: 4px;
-  transition: width 0.5s ease;
+  border-radius: 3px;
+  transition: width 0.4s ease;
 }
 
-.perf-metric__bar-range {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.08);
-  border-left: 2px solid rgba(0, 0, 0, 0.15);
-  border-right: 2px solid rgba(0, 0, 0, 0.15);
-}
+.perf-metric--ok .perf-metric__bar-fill { background: #27ae60; }
+.perf-metric--above .perf-metric__bar-fill { background: #7C5CFC; }
+.perf-metric--progress .perf-metric__bar-fill { background: var(--color-accent); }
+.perf-metric--below .perf-metric__bar-fill { background: #e74c3c; }
 
-.perf-metric--ok .perf-metric__bar-fill { background: var(--color-success); }
-.perf-metric--ok .perf-metric__actual { color: var(--color-success); }
-.perf-metric--warn .perf-metric__bar-fill { background: var(--color-warn); }
-.perf-metric--warn .perf-metric__actual { color: var(--color-warn); }
-.perf-metric--alert .perf-metric__bar-fill { background: var(--color-danger); }
-.perf-metric--alert .perf-metric__actual { color: var(--color-danger); }
-
-.perf-metric__expected {
+.perf-metric__footer {
+  display: flex;
+  justify-content: space-between;
   font-size: 11px;
-  color: var(--color-text-muted);
-  margin-top: 4px;
+  color: var(--color-text-secondary);
+}
+
+.perf-metric__note {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
 }
 
 /* Charts */

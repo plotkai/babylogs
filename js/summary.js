@@ -13,8 +13,8 @@ export async function computeSummary(babyId, startDate, endDate) {
   const endKey = formatDateKey(endDate);
   const activities = await getActivitiesByRange(babyId, startKey, endKey);
 
-  // Calculate number of days in range
-  const dayCount = Math.max(1, Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1);
+  // Calculate exact number of days in range
+  const dayCount = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
 
   const summary = {
     totalActivities: activities.length,
@@ -187,7 +187,7 @@ export function getDateRange(periodType, referenceDate) {
 /**
  * Compare actual performance against expected for a baby's age
  */
-export function comparePerformance(summary, dob) {
+export function comparePerformance(summary, dob, period = 'day', isCurrent = false) {
   const expectedPerf = getExpectedPerformance();
   const bracket = getAgeBracket(dob, expectedPerf);
   const expected = expectedPerf[bracket];
@@ -195,52 +195,72 @@ export function comparePerformance(summary, dob) {
   if (!expected) return null;
 
   const perDay = summary.dayCount;
+  const isDayView = period === 'day';
 
   const metrics = [
     {
-      label: 'Feeds per day',
-      actual: Math.round(summary.feeds.totalFeedCount / perDay * 10) / 10,
+      key: 'feeds',
+      label: isDayView ? 'Feeds' : 'Feeds',
+      actual: isDayView ? summary.feeds.totalFeedCount : Math.round(summary.feeds.totalFeedCount / perDay * 10) / 10,
+      total: summary.feeds.totalFeedCount,
       min: expected.feeds_per_day.min,
       max: expected.feeds_per_day.max,
-      unit: ''
+      unit: isDayView ? '' : ' / day'
     },
     {
-      label: 'Wet diapers per day',
-      actual: Math.round((summary.output.wetCount + summary.output.diaperChangeCount) / perDay * 10) / 10,
+      key: 'wet',
+      label: isDayView ? 'Wet diapers' : 'Wet diapers',
+      actual: isDayView ? summary.output.wetCount : Math.round(summary.output.wetCount / perDay * 10) / 10,
+      total: summary.output.wetCount,
       min: expected.wet_diapers_per_day.min,
       max: expected.wet_diapers_per_day.max,
-      unit: ''
+      unit: isDayView ? '' : ' / day'
     },
     {
-      label: 'Poops per day',
-      actual: Math.round(summary.output.poopCount / perDay * 10) / 10,
+      key: 'poop',
+      label: isDayView ? 'Poops' : 'Poops',
+      actual: isDayView ? summary.output.poopCount : Math.round(summary.output.poopCount / perDay * 10) / 10,
+      total: summary.output.poopCount,
       min: expected.poop_per_day.min,
       max: expected.poop_per_day.max,
-      unit: ''
+      unit: isDayView ? '' : ' / day'
     },
     {
-      label: 'Sleep hours per day',
-      actual: Math.round(summary.sleep.totalMinutes / perDay / 60 * 10) / 10,
+      key: 'sleep',
+      label: isDayView ? 'Sleep hours' : 'Sleep hours',
+      actual: isDayView ? Math.round(summary.sleep.totalMinutes / 60 * 10) / 10 : Math.round(summary.sleep.totalMinutes / perDay / 60 * 10) / 10,
+      totalMinutes: summary.sleep.totalMinutes,
       min: expected.sleep_hours_per_day.min,
       max: expected.sleep_hours_per_day.max,
-      unit: 'h'
+      unit: isDayView ? 'h' : 'h / day'
     }
   ];
 
-  // Determine status for each metric
+  // Determine status and descriptive badges
   for (const m of metrics) {
+    m.progressPct = Math.min(Math.round((m.actual / m.max) * 100), 100);
+
     if (m.actual >= m.min && m.actual <= m.max) {
       m.status = 'ok';
-    } else if (m.actual >= m.min * 0.8 && m.actual <= m.max * 1.2) {
-      m.status = 'warn';
+      m.badge = '✓ On Target';
+    } else if (m.actual > m.max) {
+      m.status = 'above';
+      m.badge = 'Above Target';
     } else {
-      m.status = 'alert';
+      if (isDayView && isCurrent) {
+        m.status = 'progress';
+        m.badge = `${m.actual} of ${m.min}–${m.max}`;
+      } else {
+        m.status = 'below';
+        m.badge = `${m.actual} of ${m.min}–${m.max}`;
+      }
     }
   }
 
   return {
     bracketLabel: expected.label,
     notes: expected.notes,
+    isDayView,
     metrics
   };
 }

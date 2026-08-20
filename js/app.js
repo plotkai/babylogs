@@ -1113,7 +1113,8 @@ async function loadSummaryData(period) {
 
   const { start, end } = getDateRange(period, summaryDate);
   const summary = await computeSummary(settings.activeBabyId, start, end);
-  const performance = comparePerformance(summary, baby.dob);
+  const isCurrent = period === 'day' ? isToday(summaryDate) : period === 'week' ? isThisWeek(summaryDate) : isThisMonth(summaryDate);
+  const performance = comparePerformance(summary, baby.dob, period, isCurrent);
 
   const container = document.getElementById('summary-data');
   if (!container) return;
@@ -1199,25 +1200,31 @@ async function loadSummaryData(period) {
       <canvas class="summary__chart" id="chart-sleep"></canvas>
     </div>
 
-    <!-- Expected Performance -->
+    <!-- Expected Performance Targets -->
     ${performance ? `
     <div class="summary__card">
-      <div class="summary__card-title">📈 Expected Performance — ${performance.bracketLabel}</div>
+      <div class="summary__card-title">📈 Milestone Targets — ${performance.bracketLabel}</div>
+      <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: -6px; margin-bottom: 12px;">
+        ${period === 'day' ? (isCurrent ? 'Milestone targets for today:' : 'Milestone targets for this day:') : 'Daily averages vs recommended milestone targets:'}
+      </p>
       ${performance.metrics.map(m => `
         <div class="perf-metric perf-metric--${m.status}">
           <div class="perf-metric__label">
-            <span>${m.label}</span>
-            <span class="perf-metric__actual">${m.actual}${m.unit} ${m.status === 'ok' ? '✓' : m.status === 'warn' ? '⚠' : '✗'}</span>
+            <span class="perf-metric__name">${m.label}</span>
+            <span class="perf-metric__badge perf-metric__badge--${m.status}">${m.badge}</span>
           </div>
           <div class="perf-metric__bar">
-            <div class="perf-metric__bar-fill" style="width: ${Math.min((m.actual / m.max) * 100, 100)}%"></div>
+            <div class="perf-metric__bar-fill" style="width: ${m.progressPct}%"></div>
           </div>
-          <div class="perf-metric__expected">Expected: ${m.min} – ${m.max} per day</div>
+          <div class="perf-metric__footer">
+            <span class="perf-metric__count">Logged: <strong>${m.actual}${m.unit}</strong></span>
+            <span class="perf-metric__target">Target: ${m.min} – ${m.max} ${period === 'day' ? 'today' : '/ day'}</span>
+          </div>
         </div>
       `).join('')}
-      <p style="font-size: 13px; color: var(--color-text-secondary); margin-top: 8px; line-height: 1.5;">
+      <div class="perf-metric__note">
         💡 ${performance.notes}
-      </p>
+      </div>
     </div>
     ` : ''}
 
