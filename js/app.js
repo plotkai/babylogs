@@ -945,9 +945,6 @@ function renderSidebar() {
     </button>
     ` : ''}
     <div class="sidebar__divider"></div>
-    <button class="sidebar__item sidebar__item--danger" id="nav-clear">
-      <span class="sidebar__item-icon">🗑️</span> Clear All Data
-    </button>
     <button class="sidebar__item" id="nav-about">
       <span class="sidebar__item-icon">ℹ️</span> About
     </button>
@@ -970,16 +967,6 @@ function renderSidebar() {
     } catch { showToast('Import failed'); }
   });
   document.getElementById('nav-install')?.addEventListener('click', () => { closeSidebar(); triggerInstall(); });
-  document.getElementById('nav-clear')?.addEventListener('click', () => {
-    closeSidebar();
-    showConfirm('Clear All Data', 'This will permanently delete ALL baby profiles and activity logs. This cannot be undone!', () => {
-      showConfirm('Are you absolutely sure?', 'All data will be lost forever. Consider exporting first.', async () => {
-        await clearAllData();
-        showToast('All data cleared');
-        renderWelcome();
-      });
-    });
-  });
   document.getElementById('nav-about')?.addEventListener('click', () => {
     closeSidebar();
     const appConfig = getAppConfig();
@@ -1407,12 +1394,36 @@ function renderSettings() {
           ℹ️ <strong>Note:</strong> These are in-app notifications only and can only be received while the app is open. Since Babylogs runs 100% privately on your device without a cloud server, background alerts when the app is closed are not supported.
         </div>
       </div>
+
+      <div class="settings__group">
+        <div class="settings__group-title">Data Management</div>
+        <div class="settings__row">
+          <div>
+            <div class="settings__row-label" style="color: var(--color-danger);">Clear All Data</div>
+            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Permanently delete all profiles and activity logs</div>
+          </div>
+          <button class="btn btn--danger btn--sm" id="btn-clear-data" style="margin-left: 12px; white-space: nowrap;">
+            🗑️ Clear All
+          </button>
+        </div>
+      </div>
     </div>
 
     <div class="toast" id="toast"></div>
   `;
 
   document.getElementById('back-btn').addEventListener('click', renderMain);
+
+  // Clear all data
+  document.getElementById('btn-clear-data')?.addEventListener('click', () => {
+    showConfirm('Clear All Data', 'This will permanently delete ALL baby profiles and activity logs. This cannot be undone!', () => {
+      showConfirm('Are you absolutely sure?', 'All data will be lost forever. Consider exporting first.', async () => {
+        await clearAllData();
+        showToast('All data cleared');
+        renderWelcome();
+      });
+    });
+  });
 
   // Unit changes
   document.getElementById('setting-volume').addEventListener('change', (e) => {
