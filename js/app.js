@@ -145,7 +145,13 @@ async function renderMain() {
         <span class="header__title-main">Babylogs</span>
         <span class="header__title-sub">by Plotkai</span>
       </span>
-      <span class="header__right"></span>
+      <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      </button>
     </header>
 
     <div class="main-content">
@@ -345,6 +351,9 @@ function bindMainEvents() {
 
   // Baby switcher
   document.getElementById('baby-switcher-toggle').addEventListener('click', toggleBabySwitcher);
+
+  // Analytics / Summary button
+  document.getElementById('analytics-btn')?.addEventListener('click', renderSummary);
 
   // Last feed timer — tap to add feed
   document.getElementById('last-feed-timer').addEventListener('click', () => {

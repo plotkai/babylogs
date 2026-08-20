@@ -128,7 +128,8 @@ body {
   box-shadow: 0 2px 8px rgba(76, 31, 122, 0.2);
 }
 
-.header__menu-btn {
+.header__menu-btn,
+.header__action-btn {
   background: none;
   border: none;
   color: #FFFFFF;
@@ -136,12 +137,22 @@ body {
   cursor: pointer;
   padding: 8px;
   border-radius: var(--radius-sm);
-  transition: background var(--transition-fast);
+  transition: background var(--transition-fast), transform var(--transition-fast);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 40px;
   height: 40px;
+}
+
+.header__menu-btn:hover,
+.header__action-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.header__menu-btn:active,
+.header__action-btn:active {
+  transform: scale(0.92);
 }
 
 .header__title {
