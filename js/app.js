@@ -903,7 +903,11 @@ function openAddBabyModal() {
     addProfile(profile);
     updateSetting('activeBabyId', profile.id);
     closeModal();
-    renderMain();
+    if (currentView === 'manage-babies') {
+      renderManageBabies();
+    } else {
+      renderMain();
+    }
     showToast(`${name} added! 👶`);
   });
 }
@@ -922,11 +926,8 @@ function renderSidebar() {
     <button class="sidebar__item" id="nav-summary">
       <span class="sidebar__item-icon">📊</span> Summary
     </button>
-    <button class="sidebar__item" id="nav-edit-profile">
-      <span class="sidebar__item-icon">✏️</span> Edit Baby Profile
-    </button>
-    <button class="sidebar__item" id="nav-add-baby">
-      <span class="sidebar__item-icon">👶</span> Add Baby
+    <button class="sidebar__item" id="nav-manage-babies">
+      <span class="sidebar__item-icon">👶</span> Manage Babies
     </button>
     <button class="sidebar__item" id="nav-settings">
       <span class="sidebar__item-icon">⚙️</span> Settings
@@ -952,8 +953,7 @@ function renderSidebar() {
 
   // Bind sidebar actions
   document.getElementById('nav-summary')?.addEventListener('click', () => { closeSidebar(); renderSummary(); });
-  document.getElementById('nav-edit-profile')?.addEventListener('click', () => { closeSidebar(); openEditProfileModal(); });
-  document.getElementById('nav-add-baby')?.addEventListener('click', () => { closeSidebar(); openAddBabyModal(); });
+  document.getElementById('nav-manage-babies')?.addEventListener('click', () => { closeSidebar(); renderManageBabies(); });
   document.getElementById('nav-settings')?.addEventListener('click', () => { closeSidebar(); renderSettings(); });
   document.getElementById('nav-export')?.addEventListener('click', async () => {
     closeSidebar();
@@ -982,12 +982,123 @@ function closeSidebar() {
   document.getElementById('sidebar-overlay')?.classList.remove('active');
 }
 
+// ==================== MANAGE BABIES SCREEN ====================
+
+function renderManageBabies() {
+  currentView = 'manage-babies';
+  const app = document.getElementById('app');
+  const profiles = getProfiles();
+  const settings = getSettings();
+
+  app.innerHTML = `
+    <header class="header" id="header">
+      <button class="header__menu-btn" id="back-btn" aria-label="Back">←</button>
+      <span class="header__title">Manage Babies</span>
+      <button class="header__action-btn" id="header-add-baby-btn" aria-label="Add Baby" title="Add Baby">＋</button>
+    </header>
+
+    <div class="manage-babies">
+      <div class="manage-babies__header-cta">
+        <button class="btn btn--primary btn--full" id="btn-add-baby-page">＋ Add New Baby</button>
+      </div>
+
+      <div class="manage-babies__list">
+        ${profiles.map(baby => {
+          const isActive = baby.id === settings.activeBabyId;
+          const dobFormatted = formatDateDisplay(new Date(baby.dob + 'T12:00:00'));
+          return `
+            <div class="baby-card ${isActive ? 'baby-card--active' : ''}">
+              <div class="baby-card__top">
+                <div class="baby-card__avatar">${baby.name.charAt(0).toUpperCase()}</div>
+                <div class="baby-card__info">
+                  <div class="baby-card__name-row">
+                    <span class="baby-card__name">${baby.name}</span>
+                    ${isActive ? '<span class="baby-card__badge">Active</span>' : ''}
+                  </div>
+                  <div class="baby-card__meta">${getAgeString(baby.dob)} old • Born ${dobFormatted}</div>
+                </div>
+              </div>
+              <div class="baby-card__actions">
+                ${!isActive ? `<button class="btn btn--secondary btn--sm btn-select-baby" data-id="${baby.id}">Select</button>` : ''}
+                <button class="btn btn--secondary btn--sm btn-edit-baby" data-id="${baby.id}">✏️ Edit</button>
+                <button class="btn btn--danger btn--sm btn-delete-baby" data-id="${baby.id}">🗑️ Delete</button>
+              </div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal" id="modal">
+        <div class="modal__drag-handle"></div>
+        <div class="modal__header">
+          <h2 class="modal__title" id="modal-title"></h2>
+          <button class="modal__close-btn" id="modal-close">✕</button>
+        </div>
+        <div class="modal__body" id="modal-body"></div>
+        <div class="modal__footer" id="modal-footer"></div>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog -->
+    <div class="confirm-overlay" id="confirm-overlay">
+      <div class="confirm-dialog" id="confirm-dialog"></div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+  `;
+
+  // Back button
+  document.getElementById('back-btn').addEventListener('click', renderMain);
+
+  // Add baby buttons
+  document.getElementById('header-add-baby-btn')?.addEventListener('click', openAddBabyModal);
+  document.getElementById('btn-add-baby-page')?.addEventListener('click', openAddBabyModal);
+
+  // Modal close handlers
+  document.getElementById('modal-close')?.addEventListener('click', closeModal);
+  document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+    if (e.target.id === 'modal-overlay') closeModal();
+  });
+
+  // Select baby
+  app.querySelectorAll('.btn-select-baby').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      updateSetting('activeBabyId', id);
+      renderManageBabies();
+      showToast('Active baby switched ✓');
+    });
+  });
+
+  // Edit baby
+  app.querySelectorAll('.btn-edit-baby').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      openEditProfileModal(id);
+    });
+  });
+
+  // Delete baby
+  app.querySelectorAll('.btn-delete-baby').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      const baby = profiles.find(p => p.id === id);
+      if (baby) confirmDeleteBaby(baby);
+    });
+  });
+}
+
 // ==================== EDIT PROFILE ====================
 
-function openEditProfileModal() {
+function openEditProfileModal(targetBabyId) {
   const settings = getSettings();
   const profiles = getProfiles();
-  const baby = profiles.find(p => p.id === settings.activeBabyId);
+  const babyId = targetBabyId || settings.activeBabyId;
+  const baby = profiles.find(p => p.id === babyId);
   if (!baby) return;
 
   const overlay = document.getElementById('modal-overlay');
@@ -995,7 +1106,7 @@ function openEditProfileModal() {
   const body = document.getElementById('modal-body');
   const footer = document.getElementById('modal-footer');
 
-  title.textContent = 'Edit Baby Profile';
+  title.textContent = `Edit ${baby.name}`;
   body.innerHTML = `
     <div class="form-group">
       <label class="form-group__label">Baby's Name</label>
@@ -1007,11 +1118,9 @@ function openEditProfileModal() {
     </div>
   `;
 
-  const canDelete = profiles.length > 1;
   footer.innerHTML = `
-    ${canDelete ? '<button class="btn btn--danger btn--sm" id="delete-profile-btn">Delete Baby</button>' : ''}
     <button class="btn btn--secondary" id="modal-cancel">Cancel</button>
-    <button class="btn btn--primary" id="save-profile-btn">Save</button>
+    <button class="btn btn--primary" id="save-profile-btn">Save Changes</button>
   `;
 
   overlay.classList.add('active');
@@ -1024,23 +1133,33 @@ function openEditProfileModal() {
 
     updateProfile(baby.id, { name, dob });
     closeModal();
-    renderMain();
+    if (currentView === 'manage-babies') {
+      renderManageBabies();
+    } else {
+      renderMain();
+    }
     showToast('Profile updated ✓');
   });
+}
 
-  document.getElementById('delete-profile-btn')?.addEventListener('click', () => {
-    closeModal();
-    showConfirm('Delete Baby', `Are you sure you want to delete ${baby.name} and all their data?`, async () => {
-      deleteProfile(baby.id);
-      const remaining = getProfiles();
-      if (remaining.length > 0) {
+function confirmDeleteBaby(baby) {
+  showConfirm('Delete Baby', `Are you sure you want to delete ${baby.name} and all their logged activities? This cannot be undone!`, async () => {
+    deleteProfile(baby.id);
+    const remaining = getProfiles();
+    if (remaining.length > 0) {
+      const settings = getSettings();
+      if (settings.activeBabyId === baby.id) {
         updateSetting('activeBabyId', remaining[0].id);
-        renderMain();
-      } else {
-        renderWelcome();
       }
-      showToast(`${baby.name} deleted`);
-    });
+      if (currentView === 'manage-babies') {
+        renderManageBabies();
+      } else {
+        renderMain();
+      }
+    } else {
+      renderWelcome();
+    }
+    showToast(`${baby.name} deleted`);
   });
 }
 
