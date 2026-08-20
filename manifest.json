@@ -1,13 +1,15 @@
 {
   "name": "Babylogs by Plotkai",
   "short_name": "Babylogs",
-  "description": "Track your baby's feeds, diapers, sleep and more — offline and private",
+  "description": "Free, 100% private, and offline baby activity and milestone tracker. Log feeds, diapers, sleep, and health without sign-up or servers.",
+  "id": "in.plotkai.babylogs",
   "start_url": "./index.html",
+  "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#F8F8F8",
   "theme_color": "#4C1F7A",
-  "categories": ["health", "lifestyle"],
+  "categories": ["health", "lifestyle", "medical", "productivity", "utilities"],
   "icons": [
     {
       "src": "icons/icon-192.png",

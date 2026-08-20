@@ -3,20 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  
+  <!-- Primary Meta Tags -->
+  <title>Babylogs by Plotkai — Free, Private Baby Activity & Milestone Tracker PWA</title>
+  <meta name="title" content="Babylogs by Plotkai — Free, Private Baby Activity & Milestone Tracker PWA">
+  <meta name="description" content="Track your baby's feeds (breast, formula, express), diaper changes, sleep duration, milestone development, tummy time, and health — 100% free, offline-first, and private on your device. Zero servers, zero tracking.">
+  <meta name="keywords" content="baby tracker, baby logs, baby log, baby activity tracker, breastfeeding tracker, nursing log, baby feed tracker, diaper tracker, diaper change log, baby sleep tracker, nap log, tummy time tracker, infant milestones, newborn daily schedule, newborn tracker app, free baby tracker, private baby tracker, offline baby tracker, baby tracker PWA, Babylogs, Plotkai">
+  <meta name="author" content="Plotkai">
+  <meta name="application-name" content="Babylogs">
+  
+  <!-- Search Engine Crawlers & Indexing -->
+  <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="googlebot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <meta name="bingbot" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1">
+  <link rel="canonical" href="https://babylogs.plotkai.in/">
+
+  <!-- Mobile & PWA Settings -->
   <meta name="theme-color" content="#4C1F7A">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Babylogs">
-  <meta name="description" content="Track your baby's feeds, diapers, sleep and more — offline, private, and free. Babylogs by Plotkai.">
-  <meta name="keywords" content="baby tracker, baby logs, baby log, breastfeeding tracker, diaper log, baby sleep tracker, infant tracker">
-  <meta name="author" content="Plotkai">
+  <meta name="format-detection" content="telephone=no">
 
-  <!-- Open Graph -->
-  <meta property="og:title" content="Babylogs by Plotkai">
-  <meta property="og:description" content="Track your baby's feeds, diapers, sleep and more — offline and private.">
+  <!-- Open Graph / Facebook / WhatsApp / LinkedIn -->
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://babylogs.plotkai.in/">
+  <meta property="og:site_name" content="Babylogs by Plotkai">
+  <meta property="og:title" content="Babylogs by Plotkai — Free, Private Baby Activity & Milestone Tracker">
+  <meta property="og:description" content="Track your baby's feeds, diaper changes, sleep, and growth milestones offline and 100% privately. Free PWA with no sign-up required.">
+  <meta property="og:image" content="https://babylogs.plotkai.in/icons/icon-512.png">
+  <meta property="og:image:secure_url" content="https://babylogs.plotkai.in/icons/icon-512.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="512">
+  <meta property="og:image:height" content="512">
+  <meta property="og:image:alt" content="Babylogs App Icon">
+  <meta property="og:locale" content="en_US">
 
-  <title>Babylogs by Plotkai — Baby Activity Tracker</title>
+  <!-- Twitter / X Cards -->
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:url" content="https://babylogs.plotkai.in/">
+  <meta name="twitter:title" content="Babylogs by Plotkai — Free, Private Baby Activity Tracker">
+  <meta name="twitter:description" content="Track feeds, diaper changes, sleep, and milestone development offline and privately on your device. 100% free with no sign-up.">
+  <meta name="twitter:image" content="https://babylogs.plotkai.in/icons/icon-512.png">
+  <meta name="twitter:image:alt" content="Babylogs App Icon">
+  <meta name="twitter:creator" content="@plotkai">
+  <meta name="twitter:site" content="@plotkai">
 
   <!-- PWA Manifest -->
   <link rel="manifest" href="./manifest.json">
@@ -28,10 +60,105 @@
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3660780299197648" crossorigin="anonymous"></script>
 
+  <!-- Schema.org JSON-LD Structured Data for WebApplication & FAQs -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebApplication",
+        "@id": "https://babylogs.plotkai.in/#webapp",
+        "name": "Babylogs by Plotkai",
+        "url": "https://babylogs.plotkai.in/",
+        "applicationCategory": "HealthApplication",
+        "operatingSystem": "All (Web, iOS, Android, macOS, Windows)",
+        "browserRequirements": "Requires JavaScript. Requires HTML5.",
+        "description": "Offline-first, 100% private baby activity tracker PWA. Log breastfeeding, formula feeds, sleep stretches, diaper changes, and milestone comparisons without creating an account or sending data to servers.",
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@type": "Organization",
+          "name": "Plotkai",
+          "url": "https://plotkai.in"
+        },
+        "featureList": [
+          "Breastfeeding, Formula, and Expressed feeding tracker",
+          "Diaper changes, wet and poop tracking with color and consistency details",
+          "Sleep, naps, and stretch duration timer",
+          "Tummy time, bath, massage, medicine, and weight check logging",
+          "Expected performance comparisons based on baby age milestones",
+          "100% offline support via Progressive Web App (PWA)",
+          "Data privacy: local IndexedDB storage with zero server uploads",
+          "Data export to CSV, JSON, and printable PDF reports",
+          "Multiple baby profile support with single-tap switcher"
+        ]
+      },
+      {
+        "@type": "FAQPage",
+        "@id": "https://babylogs.plotkai.in/#faq",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "Is my baby's data private on Babylogs?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Babylogs is completely client-side and stores all activity logs locally on your device using IndexedDB. No personal logs or profile details are ever transmitted to or stored on external servers."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use Babylogs offline without an internet connection?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Babylogs is a full Progressive Web App (PWA) equipped with an offline Service Worker. Once loaded or installed on your phone's home screen, you can log feeds, diapers, and sleep completely offline."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "How do I install Babylogs on iPhone or Android?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "On iOS Safari, tap the Share button and select 'Add to Home Screen'. On Android Chrome, tap the menu or 'Install App' banner to install Babylogs as a standalone mobile app."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I export my baby's data to share with a pediatrician?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. From the Summary view, you can export your baby's logs to CSV, PDF summary reports, or a full JSON backup."
+            }
+          }
+        ]
+      }
+    ]
+  }
+  </script>
+
   <!-- Styles -->
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
+  <!-- Semantic Crawler Fallback for Search Engines -->
+  <noscript>
+    <div style="padding: 24px; max-width: 600px; margin: 0 auto; font-family: sans-serif; line-height: 1.6;">
+      <h1>Babylogs by Plotkai — Private Baby Activity Tracker</h1>
+      <p>Babylogs is a free, privacy-first Progressive Web App (PWA) to track your baby's daily feeding, diaper changes, sleep patterns, and growth milestones.</p>
+      <h2>Key Features:</h2>
+      <ul>
+        <li><strong>Feeding Logs:</strong> Breastfeeding timer, formula quantity, and expressed milk tracking.</li>
+        <li><strong>Diaper & Output:</strong> Track wet diapers, bowel movements, color, consistency, and diaper changes.</li>
+        <li><strong>Sleep Tracker:</strong> Monitor nap duration, total daily sleep, and longest sleep stretches.</li>
+        <li><strong>Milestone Guidance:</strong> Compare daily activity against expected developmental benchmarks.</li>
+        <li><strong>100% Private & Offline:</strong> All data stays stored safely in your browser's IndexedDB.</li>
+      </ul>
+      <p>Please enable JavaScript to launch the full Babylogs app experience.</p>
+    </div>
+  </noscript>
+
   <div id="app"></div>
   <script type="module" src="./js/app.js"></script>
 </body>

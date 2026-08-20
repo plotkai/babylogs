@@ -1,11 +1,13 @@
 // sw.js — Service Worker for Babylogs PWA (offline-first caching)
 
-const CACHE_NAME = 'babylogs-v18';
+const CACHE_NAME = 'babylogs-v19';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './manifest.json',
+  './robots.txt',
+  './sitemap.xml',
   './config/baby-config.json',
   './js/app.js',
   './js/db.js',
@@ -15,7 +17,8 @@ const ASSETS = [
   './js/notifications.js',
   './js/export.js',
   './icons/icon-192.png',
-  './icons/icon-512.png'
+  './icons/icon-512.png',
+  './favicon.svg'
 ];
 
 // Install — precache all static assets
