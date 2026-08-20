@@ -210,6 +210,54 @@ export function startOfMonth(date) {
 }
 
 /**
+ * Check if a date is in current week
+ */
+export function isThisWeek(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const now = new Date();
+  const currentWeekStart = startOfWeek(now);
+  const targetWeekStart = startOfWeek(d);
+  return currentWeekStart.getTime() === targetWeekStart.getTime();
+}
+
+/**
+ * Check if a date is in current month
+ */
+export function isThisMonth(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
+/**
+ * Format week range: e.g. "17 Aug - 23 Aug"
+ */
+export function formatWeekRange(startDate, endDate) {
+  const s = startDate instanceof Date ? startDate : new Date(startDate);
+  const e = endDate instanceof Date ? endDate : new Date(endDate);
+  const sMonth = s.toLocaleDateString('en-US', { month: 'short' });
+  const eMonth = e.toLocaleDateString('en-US', { month: 'short' });
+  const sDay = s.getDate();
+  const eDay = e.getDate();
+
+  if (s.getFullYear() !== e.getFullYear()) {
+    return `${sDay} ${sMonth} ${s.getFullYear()} - ${eDay} ${eMonth} ${e.getFullYear()}`;
+  }
+  if (sMonth === eMonth) {
+    return `${sDay} - ${eDay} ${sMonth}`;
+  }
+  return `${sDay} ${sMonth} - ${eDay} ${eMonth}`;
+}
+
+/**
+ * Format month display: e.g. "August 2026"
+ */
+export function formatMonthDisplay(date) {
+  const d = date instanceof Date ? date : new Date(date);
+  return d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+}
+
+/**
  * Debounce function
  */
 export function debounce(fn, delay) {

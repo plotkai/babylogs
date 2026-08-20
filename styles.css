@@ -989,7 +989,15 @@ body {
   background: var(--color-surface-alt);
   padding: 4px;
   border-radius: var(--radius-md);
-  margin-bottom: 20px;
+  margin-bottom: 12px;
+}
+
+.summary__date-nav {
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+  padding: 8px 12px;
 }
 
 .summary__period-tab {

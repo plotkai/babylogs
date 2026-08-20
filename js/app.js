@@ -2,7 +2,7 @@
 
 import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig } from './config.js';
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, getSettings as getAppSettings } from './db.js';
-import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday } from './utils.js';
+import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { exportJSON, importJSON, exportCSV, exportPDF } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart } from './summary.js';
@@ -10,6 +10,8 @@ import { computeSummary, getDateRange, comparePerformance, renderBarChart, rende
 // ==================== STATE ====================
 let currentView = 'welcome'; // 'welcome' | 'main' | 'summary' | 'settings'
 let currentDate = new Date();
+let summaryDate = new Date();
+let summaryPeriod = 'day';
 let currentActivities = [];
 let editingActivity = null;
 let deferredInstallPrompt = null;
@@ -942,6 +944,8 @@ function openEditProfileModal() {
 
 async function renderSummary() {
   currentView = 'summary';
+  summaryPeriod = 'day';
+  summaryDate = new Date(currentDate);
   const app = document.getElementById('app');
   const appConfig = getAppConfig();
   const settings = getSettings();
@@ -963,6 +967,14 @@ async function renderSummary() {
         <button class="summary__period-tab" data-period="week">Week</button>
         <button class="summary__period-tab" data-period="month">Month</button>
       </div>
+
+      <!-- Period / Date Navigator -->
+      <div class="date-nav summary__date-nav" id="summary-date-nav">
+        <button class="date-nav__btn" id="summary-date-prev" aria-label="Previous period">◀</button>
+        <span class="date-nav__label" id="summary-date-label"></span>
+        <button class="date-nav__btn" id="summary-date-next" aria-label="Next period">▶</button>
+      </div>
+
       <div id="summary-data"></div>
     </div>
 
@@ -976,11 +988,63 @@ async function renderSummary() {
     tab.addEventListener('click', () => {
       document.querySelectorAll('.summary__period-tab').forEach(t => t.classList.remove('active'));
       tab.classList.add('active');
-      loadSummaryData(tab.dataset.period);
+      summaryPeriod = tab.dataset.period;
+      updateSummaryDateNav();
+      loadSummaryData(summaryPeriod);
     });
   });
 
-  await loadSummaryData('day');
+  // Navigator prev / next
+  document.getElementById('summary-date-prev').addEventListener('click', () => changeSummaryDate(-1));
+  document.getElementById('summary-date-next').addEventListener('click', () => changeSummaryDate(1));
+
+  updateSummaryDateNav();
+  await loadSummaryData(summaryPeriod);
+}
+
+function changeSummaryDate(delta) {
+  if (summaryPeriod === 'day') {
+    summaryDate.setDate(summaryDate.getDate() + delta);
+  } else if (summaryPeriod === 'week') {
+    summaryDate.setDate(summaryDate.getDate() + delta * 7);
+  } else if (summaryPeriod === 'month') {
+    summaryDate.setMonth(summaryDate.getMonth() + delta);
+  }
+  updateSummaryDateNav();
+  loadSummaryData(summaryPeriod);
+}
+
+function updateSummaryDateNav() {
+  const label = document.getElementById('summary-date-label');
+  if (!label) return;
+
+  if (summaryPeriod === 'day') {
+    label.innerHTML = `
+      ${formatDateDisplay(summaryDate)}
+      ${isToday(summaryDate) ? '<span class="date-nav__today-badge">Today</span>' : ''}
+      <input type="date" class="date-nav__hidden-input" id="summary-date-picker" value="${formatDateKey(summaryDate)}">
+    `;
+    const picker = document.getElementById('summary-date-picker');
+    label.onclick = () => picker.showPicker?.() || picker.focus();
+    picker.onchange = (e) => {
+      summaryDate = new Date(e.target.value + 'T12:00:00');
+      updateSummaryDateNav();
+      loadSummaryData(summaryPeriod);
+    };
+  } else if (summaryPeriod === 'week') {
+    const { start, end } = getDateRange('week', summaryDate);
+    label.innerHTML = `
+      ${formatWeekRange(start, end)}
+      ${isThisWeek(summaryDate) ? '<span class="date-nav__today-badge">This Week</span>' : ''}
+    `;
+    label.onclick = null;
+  } else if (summaryPeriod === 'month') {
+    label.innerHTML = `
+      ${formatMonthDisplay(summaryDate)}
+      ${isThisMonth(summaryDate) ? '<span class="date-nav__today-badge">This Month</span>' : ''}
+    `;
+    label.onclick = null;
+  }
 }
 
 async function loadSummaryData(period) {
@@ -989,7 +1053,7 @@ async function loadSummaryData(period) {
   const baby = profiles.find(p => p.id === settings.activeBabyId);
   if (!baby) return;
 
-  const { start, end } = getDateRange(period, currentDate);
+  const { start, end } = getDateRange(period, summaryDate);
   const summary = await computeSummary(settings.activeBabyId, start, end);
   const performance = comparePerformance(summary, baby.dob);
 
