@@ -144,17 +144,27 @@ body {
   height: 40px;
 }
 
-.header__menu-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
 .header__title {
   flex: 1;
   text-align: center;
   font-family: var(--font-heading);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 5px;
+}
+
+.header__title-main {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.header__title-sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.75;
+  letter-spacing: 0.2px;
 }
 
 .header__right {
@@ -863,9 +873,22 @@ body {
 
 .welcome__title {
   font-family: var(--font-heading);
-  font-size: 28px;
-  font-weight: 700;
   margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+}
+
+.welcome__title-main {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.welcome__title-sub {
+  font-size: 14px;
+  font-weight: 400;
+  opacity: 0.75;
 }
 
 .welcome__subtitle {
@@ -959,9 +982,21 @@ body {
 
 .sidebar__app-name {
   font-family: var(--font-heading);
-  font-size: 18px;
-  font-weight: 600;
   margin-bottom: 4px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sidebar__app-name-main {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.sidebar__app-name-sub {
+  font-size: 11px;
+  font-weight: 400;
+  opacity: 0.75;
 }
 
 .sidebar__app-version {

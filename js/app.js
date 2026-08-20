@@ -70,7 +70,10 @@ function renderWelcome() {
   app.innerHTML = `
     <div class="welcome" id="welcome-screen">
       <div class="welcome__logo">👶</div>
-      <h1 class="welcome__title">${appConfig.title}</h1>
+      <h1 class="welcome__title">
+        <span class="welcome__title-main">Babylogs</span>
+        <span class="welcome__title-sub">by Plotkai</span>
+      </h1>
       <p class="welcome__subtitle">${appConfig.description || 'Track your baby\'s feeds, diapers, sleep and more'}</p>
 
       <form class="welcome__form" id="welcome-form">
@@ -136,7 +139,10 @@ async function renderMain() {
     <!-- Header -->
     <header class="header" id="header">
       <button class="header__menu-btn" id="menu-btn" aria-label="Menu">☰</button>
-      <span class="header__title">${appConfig.title}</span>
+      <span class="header__title">
+        <span class="header__title-main">Babylogs</span>
+        <span class="header__title-sub">by Plotkai</span>
+      </span>
       <span class="header__right"></span>
     </header>
 
@@ -207,7 +213,10 @@ async function renderMain() {
     <div class="sidebar-overlay" id="sidebar-overlay">
       <nav class="sidebar" id="sidebar">
         <div class="sidebar__header">
-          <div class="sidebar__app-name">${appConfig.title}</div>
+          <div class="sidebar__app-name">
+            <span class="sidebar__app-name-main">Babylogs</span>
+            <span class="sidebar__app-name-sub">by Plotkai</span>
+          </div>
           <div class="sidebar__app-version">v${appConfig.version}</div>
         </div>
         <div class="sidebar__nav" id="sidebar-nav"></div>
