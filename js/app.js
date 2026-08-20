@@ -1403,6 +1403,9 @@ function renderSettings() {
             ${config.notifications.reminderOptions.map(m => `<option value="${m}" ${settings.feedReminderInterval === m ? 'selected' : ''}>${formatDuration(m)}</option>`).join('')}
           </select>
         </div>
+        <div class="settings__subtext">
+          ℹ️ <strong>Note:</strong> These are in-app notifications only and can only be received while the app is open. Since Babylogs runs 100% privately on your device without a cloud server, background alerts when the app is closed are not supported.
+        </div>
       </div>
     </div>
 
