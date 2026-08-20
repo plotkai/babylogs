@@ -173,7 +173,7 @@
           "label": "Medicine",
           "color": "#E17055",
           "emoji": "💊",
-          "defaultDuration": 0,
+          "defaultDuration": 2,
           "fields": [
             {
               "key": "name",
@@ -193,7 +193,7 @@
           "label": "Temperature",
           "color": "#FDCB6E",
           "emoji": "🌡️",
-          "defaultDuration": 0,
+          "defaultDuration": 2,
           "fields": [
             {
               "key": "value",
@@ -208,7 +208,7 @@
           "label": "Weight Check",
           "color": "#A29BFE",
           "emoji": "⚖️",
-          "defaultDuration": 0,
+          "defaultDuration": 2,
           "fields": [
             {
               "key": "value",
