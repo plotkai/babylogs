@@ -88,9 +88,15 @@ export async function computeSummary(babyId, startDate, endDate) {
         if (a.subFields?.consistency) {
           summary.output.poopConsistencies[a.subFields.consistency] = (summary.output.poopConsistencies[a.subFields.consistency] || 0) + 1;
         }
+        if (a.subFields?.diaperChange === true) {
+          summary.output.diaperChangeCount++;
+        }
         break;
       case 'wet':
         summary.output.wetCount++;
+        if (a.subFields?.diaperChange === true) {
+          summary.output.diaperChangeCount++;
+        }
         break;
       case 'diaper_change':
         summary.output.diaperChangeCount++;

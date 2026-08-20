@@ -741,6 +741,39 @@ body {
   border-color: var(--color-accent);
 }
 
+/* Checkbox */
+.form-group--checkbox {
+  margin-top: 6px;
+  margin-bottom: 16px;
+}
+
+.checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 10px 14px;
+  background: var(--color-surface-alt);
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+}
+
+.checkbox-container:hover {
+  border-color: var(--color-accent);
+}
+
+.dynamic-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
 /* Buttons */
 .btn {
   padding: 12px 24px;

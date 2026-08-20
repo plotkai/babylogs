@@ -133,6 +133,10 @@ export function buildDisplayText(eventTypeConfig, subFields, unitSettings) {
         } else if (field.type === 'number' && field.unit) {
           const unit = unitSettings?.[field.unit]?.current || unitSettings?.[field.unit]?.default || '';
           parts.push(`${val}${unit}`);
+        } else if (field.type === 'checkbox') {
+          if (val === true) {
+            parts.push(field.label);
+          }
         } else {
           parts.push(String(val));
         }

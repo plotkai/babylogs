@@ -564,6 +564,21 @@ function renderDynamicFields(eventType, existingValues = {}) {
       `;
     }
 
+    if (field.type === 'checkbox') {
+      const isChecked = (value !== undefined && value !== '') 
+        ? Boolean(value) 
+        : (field.default !== undefined ? Boolean(field.default) : false);
+      return `
+        <div class="form-group form-group--checkbox">
+          <label class="checkbox-container">
+            <input type="checkbox" class="dynamic-checkbox" data-key="${field.key}" ${isChecked ? 'checked' : ''}>
+            <span class="checkbox-custom"></span>
+            <span class="checkbox-text">${field.label}</span>
+          </label>
+        </div>
+      `;
+    }
+
     // Default: text input
     return `
       <div class="form-group">
@@ -601,6 +616,10 @@ async function saveActivity() {
   document.querySelectorAll('.dynamic-field').forEach(el => {
     const key = el.dataset.key;
     subFields[key] = el.value;
+  });
+  document.querySelectorAll('.dynamic-checkbox').forEach(el => {
+    const key = el.dataset.key;
+    subFields[key] = el.checked;
   });
   document.querySelectorAll('.multi-select').forEach(el => {
     const key = el.dataset.key;

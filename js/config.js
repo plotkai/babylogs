@@ -119,8 +119,24 @@ function getDefaultConfig() {
         label: 'Output',
         icon: '🧷',
         types: {
-          poop: { label: 'Poop', color: '#A0522D', emoji: '💩', fields: [] },
-          wet: { label: 'Wet', color: '#4A90D9', emoji: '💧', fields: [] },
+          poop: {
+            label: 'Poop',
+            color: '#A0522D',
+            emoji: '💩',
+            fields: [
+              { key: 'color', label: 'Color', type: 'select', options: ["Yellow", "Green", "Brown", "Black", "Red"], required: false },
+              { key: 'consistency', label: 'Consistency', type: 'select', options: ["Watery", "Soft", "Formed", "Hard"], required: false },
+              { key: 'diaperChange', label: 'Diaper Changed', type: 'checkbox', default: true, required: false }
+            ]
+          },
+          wet: {
+            label: 'Wet',
+            color: '#4A90D9',
+            emoji: '💧',
+            fields: [
+              { key: 'diaperChange', label: 'Diaper Changed', type: 'checkbox', default: true, required: false }
+            ]
+          },
           diaper_change: { label: 'Diaper Change', color: '#6BBFA0', emoji: '🧷', fields: [] }
         }
       },
