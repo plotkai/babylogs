@@ -948,6 +948,7 @@ async function renderSummary() {
   summaryDate = new Date(currentDate);
   const app = document.getElementById('app');
   const appConfig = getAppConfig();
+  const adConfig = getAdBannerConfig();
   const settings = getSettings();
   const profiles = getProfiles();
   const baby = profiles.find(p => p.id === settings.activeBabyId);
@@ -960,6 +961,20 @@ async function renderSummary() {
       <span class="header__title">Summary</span>
       <span class="header__right"></span>
     </header>
+
+    <!-- Ad Banner -->
+    ${adConfig.enabled ? `
+    <div class="ad-banner" id="ad-banner-slot">
+      ${adConfig.adClient && adConfig.adSlotId ? `
+        <ins class="adsbygoogle"
+             style="display:block;height:50px;"
+             data-ad-client="${adConfig.adClient}"
+             data-ad-slot="${adConfig.adSlotId}"
+             data-ad-format="horizontal"
+             data-full-width-responsive="false"></ins>
+      ` : (adConfig.placeholder || '')}
+    </div>
+    ` : '<div style="margin-top: var(--header-height)"></div>'}
 
     <div class="summary" id="summary-content">
       <div class="summary__period-tabs" id="period-tabs">
@@ -1000,6 +1015,9 @@ async function renderSummary() {
 
   updateSummaryDateNav();
   await loadSummaryData(summaryPeriod);
+
+  // Initialize Google AdSense
+  initAdBanner();
 }
 
 function changeSummaryDate(delta) {
