@@ -146,55 +146,57 @@ async function renderMain() {
       <span class="header__right"></span>
     </header>
 
-    <!-- Ad Banner -->
-    ${adConfig.enabled ? `
-    <div class="ad-banner" id="ad-banner-slot">
-      ${adConfig.adClient && adConfig.adSlotId ? `
-        <ins class="adsbygoogle"
-             style="display:block;height:50px;"
-             data-ad-client="${adConfig.adClient}"
-             data-ad-slot="${adConfig.adSlotId}"
-             data-ad-format="horizontal"
-             data-full-width-responsive="false"></ins>
-      ` : (adConfig.placeholder || '')}
-    </div>
-    ` : '<div style="margin-top: var(--header-height)"></div>'}
-
-    <!-- Baby Switcher -->
-    <div class="baby-switcher" id="baby-switcher" style="margin-top: ${adConfig.enabled ? '0' : 'var(--header-height)'}">
-      <div class="baby-switcher__current" id="baby-switcher-toggle">
-        <div class="baby-switcher__avatar">${activeBaby.name.charAt(0).toUpperCase()}</div>
-        <div>
-          <div class="baby-switcher__name">${activeBaby.name}</div>
-          <div class="baby-switcher__age">${getAgeString(activeBaby.dob)} old</div>
-        </div>
-        <span class="baby-switcher__dropdown-icon" id="switcher-arrow">▼</span>
+    <div class="main-content">
+      <!-- Ad Banner -->
+      ${adConfig.enabled ? `
+      <div class="ad-banner" id="ad-banner-slot">
+        ${adConfig.adClient && adConfig.adSlotId ? `
+          <ins class="adsbygoogle"
+               style="display:block;height:50px;"
+               data-ad-client="${adConfig.adClient}"
+               data-ad-slot="${adConfig.adSlotId}"
+               data-ad-format="horizontal"
+               data-full-width-responsive="false"></ins>
+        ` : (adConfig.placeholder || '')}
       </div>
+      ` : ''}
+
+      <!-- Baby Switcher -->
+      <div class="baby-switcher" id="baby-switcher">
+        <div class="baby-switcher__current" id="baby-switcher-toggle">
+          <div class="baby-switcher__avatar">${activeBaby.name.charAt(0).toUpperCase()}</div>
+          <div>
+            <div class="baby-switcher__name">${activeBaby.name}</div>
+            <div class="baby-switcher__age">${getAgeString(activeBaby.dob)} old</div>
+          </div>
+          <span class="baby-switcher__dropdown-icon" id="switcher-arrow">▼</span>
+        </div>
+      </div>
+
+      <!-- Date Navigator -->
+      <div class="date-nav" id="date-nav">
+        <button class="date-nav__btn" id="date-prev" aria-label="Previous day">◀</button>
+        <span class="date-nav__label" id="date-label">
+          ${formatDateDisplay(currentDate)}
+          ${isToday(currentDate) ? '<span class="date-nav__today-badge">Today</span>' : ''}
+          <input type="date" class="date-nav__hidden-input" id="date-picker" value="${formatDateKey(currentDate)}">
+        </span>
+        <button class="date-nav__btn" id="date-next" aria-label="Next day">▶</button>
+      </div>
+
+      <!-- Last Feed Timer -->
+      <div class="last-feed-timer" id="last-feed-timer">
+        <span class="last-feed-timer__icon">🍼</span>
+        <span class="last-feed-timer__text">Last feed: </span>
+        <span class="last-feed-timer__time" id="feed-timer-value">loading...</span>
+      </div>
+
+      <!-- Timeline -->
+      <div class="timeline" id="timeline"></div>
+
+      <!-- FAB -->
+      <button class="fab" id="fab" aria-label="Add activity">＋</button>
     </div>
-
-    <!-- Date Navigator -->
-    <div class="date-nav" id="date-nav">
-      <button class="date-nav__btn" id="date-prev" aria-label="Previous day">◀</button>
-      <span class="date-nav__label" id="date-label">
-        ${formatDateDisplay(currentDate)}
-        ${isToday(currentDate) ? '<span class="date-nav__today-badge">Today</span>' : ''}
-        <input type="date" class="date-nav__hidden-input" id="date-picker" value="${formatDateKey(currentDate)}">
-      </span>
-      <button class="date-nav__btn" id="date-next" aria-label="Next day">▶</button>
-    </div>
-
-    <!-- Last Feed Timer -->
-    <div class="last-feed-timer" id="last-feed-timer">
-      <span class="last-feed-timer__icon">🍼</span>
-      <span class="last-feed-timer__text">Last feed: </span>
-      <span class="last-feed-timer__time" id="feed-timer-value">loading...</span>
-    </div>
-
-    <!-- Timeline -->
-    <div class="timeline" id="timeline"></div>
-
-    <!-- FAB -->
-    <button class="fab" id="fab" aria-label="Add activity">＋</button>
 
     <!-- Modal Overlay -->
     <div class="modal-overlay" id="modal-overlay">
@@ -998,35 +1000,37 @@ async function renderSummary() {
       <span class="header__right"></span>
     </header>
 
-    <!-- Ad Banner -->
-    ${adConfig.enabled ? `
-    <div class="ad-banner" id="ad-banner-slot">
-      ${adConfig.adClient && adConfig.adSlotId ? `
-        <ins class="adsbygoogle"
-             style="display:block;height:50px;"
-             data-ad-client="${adConfig.adClient}"
-             data-ad-slot="${adConfig.adSlotId}"
-             data-ad-format="horizontal"
-             data-full-width-responsive="false"></ins>
-      ` : (adConfig.placeholder || '')}
-    </div>
-    ` : '<div style="margin-top: var(--header-height)"></div>'}
-
-    <div class="summary" id="summary-content">
-      <div class="summary__period-tabs" id="period-tabs">
-        <button class="summary__period-tab active" data-period="day">Day</button>
-        <button class="summary__period-tab" data-period="week">Week</button>
-        <button class="summary__period-tab" data-period="month">Month</button>
+    <div class="summary-wrapper">
+      <!-- Ad Banner -->
+      ${adConfig.enabled ? `
+      <div class="ad-banner" id="ad-banner-slot">
+        ${adConfig.adClient && adConfig.adSlotId ? `
+          <ins class="adsbygoogle"
+               style="display:block;height:50px;"
+               data-ad-client="${adConfig.adClient}"
+               data-ad-slot="${adConfig.adSlotId}"
+               data-ad-format="horizontal"
+               data-full-width-responsive="false"></ins>
+        ` : (adConfig.placeholder || '')}
       </div>
+      ` : ''}
 
-      <!-- Period / Date Navigator -->
-      <div class="date-nav summary__date-nav" id="summary-date-nav">
-        <button class="date-nav__btn" id="summary-date-prev" aria-label="Previous period">◀</button>
-        <span class="date-nav__label" id="summary-date-label"></span>
-        <button class="date-nav__btn" id="summary-date-next" aria-label="Next period">▶</button>
+      <div class="summary" id="summary-content">
+        <div class="summary__period-tabs" id="period-tabs">
+          <button class="summary__period-tab active" data-period="day">Day</button>
+          <button class="summary__period-tab" data-period="week">Week</button>
+          <button class="summary__period-tab" data-period="month">Month</button>
+        </div>
+
+        <!-- Period / Date Navigator -->
+        <div class="date-nav summary__date-nav" id="summary-date-nav">
+          <button class="date-nav__btn" id="summary-date-prev" aria-label="Previous period">◀</button>
+          <span class="date-nav__label" id="summary-date-label"></span>
+          <button class="date-nav__btn" id="summary-date-next" aria-label="Next period">▶</button>
+        </div>
+
+        <div id="summary-data"></div>
       </div>
-
-      <div id="summary-data"></div>
     </div>
 
     <div class="toast" id="toast"></div>

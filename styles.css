@@ -173,9 +173,15 @@ body {
   width: 40px;
 }
 
+/* ==================== PAGE CONTENT WRAPPERS ==================== */
+.main-content,
+.summary-wrapper {
+  padding-top: var(--header-height);
+  width: 100%;
+}
+
 /* ==================== AD BANNER ==================== */
 .ad-banner {
-  margin-top: var(--header-height);
   height: 50px;
   max-height: 50px;
   background: var(--color-surface-alt);
@@ -198,8 +204,14 @@ body {
   max-height: 50px !important;
 }
 
+.ad-banner:empty,
 .ad-banner:has(.adsbygoogle[data-ad-status="unfilled"]) {
   display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
 }
 
 /* ==================== BABY SWITCHER ==================== */
