@@ -446,11 +446,6 @@ function openActivityModal(activity = null, presetType = null) {
     </div>
 
     <div class="form-group">
-      <label class="form-group__label">Duration (minutes)</label>
-      <input type="number" class="form-group__input" id="modal-duration" placeholder="e.g. 15" min="0" value="${activity?.duration || ''}">
-    </div>
-
-    <div class="form-group">
       <label class="form-group__label">Event Type</label>
       <select class="form-group__select" id="modal-event-type">
         <option value="">Select event type...</option>
@@ -462,6 +457,11 @@ function openActivityModal(activity = null, presetType = null) {
           </optgroup>
         `).join('')}
       </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-group__label">Duration (minutes)</label>
+      <input type="number" class="form-group__input" id="modal-duration" placeholder="e.g. 15" min="0" value="${activity ? (activity.duration ?? '') : (selectedType ? (getActivityType(selectedType)?.defaultDuration ?? '') : '')}">
     </div>
 
     <div id="dynamic-fields"></div>
@@ -487,9 +487,17 @@ function openActivityModal(activity = null, presetType = null) {
     renderDynamicFields(selectedType, activity?.subFields);
   }
 
-  // Event type change → render dynamic fields
+  // Event type change → render dynamic fields & auto-populate default duration
   document.getElementById('modal-event-type').addEventListener('change', (e) => {
-    renderDynamicFields(e.target.value);
+    const val = e.target.value;
+    renderDynamicFields(val);
+    if (!activity && val) {
+      const typeConfig = getActivityType(val);
+      const durationInput = document.getElementById('modal-duration');
+      if (durationInput && typeConfig && typeConfig.defaultDuration !== undefined) {
+        durationInput.value = typeConfig.defaultDuration;
+      }
+    }
   });
 
   // Save

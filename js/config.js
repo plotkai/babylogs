@@ -110,9 +110,9 @@ function getDefaultConfig() {
         label: 'Feeding',
         icon: '🍼',
         types: {
-          breast_feed: { label: 'Breast Feed', color: '#7C5CFC', emoji: '🤱', fields: [] },
-          formula_feed: { label: 'Formula Feed', color: '#FF8FA3', emoji: '🍼', fields: [] },
-          express_feed: { label: 'Express Feed', color: '#FF9F43', emoji: '🥛', fields: [] }
+          breast_feed: { label: 'Breast Feed', color: '#7C5CFC', emoji: '🤱', defaultDuration: 15, fields: [] },
+          formula_feed: { label: 'Formula Feed', color: '#FF8FA3', emoji: '🍼', defaultDuration: 15, fields: [] },
+          express_feed: { label: 'Express Feed', color: '#FF9F43', emoji: '🥛', defaultDuration: 15, fields: [] }
         }
       },
       output: {
@@ -123,6 +123,7 @@ function getDefaultConfig() {
             label: 'Poop',
             color: '#A0522D',
             emoji: '💩',
+            defaultDuration: 5,
             fields: [
               { key: 'color', label: 'Color', type: 'select', options: ["Yellow", "Green", "Brown", "Black", "Red"], required: false },
               { key: 'consistency', label: 'Consistency', type: 'select', options: ["Watery", "Soft", "Formed", "Hard"], required: false },
@@ -133,31 +134,32 @@ function getDefaultConfig() {
             label: 'Wet',
             color: '#4A90D9',
             emoji: '💧',
+            defaultDuration: 5,
             fields: [
               { key: 'diaperChange', label: 'Diaper Changed', type: 'checkbox', default: true, required: false }
             ]
           },
-          diaper_change: { label: 'Diaper Change', color: '#6BBFA0', emoji: '🧷', fields: [] }
+          diaper_change: { label: 'Diaper Change', color: '#6BBFA0', emoji: '🧷', defaultDuration: 5, fields: [] }
         }
       },
       activity: {
         label: 'Activity',
         icon: '🎈',
         types: {
-          sleep: { label: 'Sleep', color: '#6C63FF', emoji: '😴', fields: [] },
-          tummy_time: { label: 'Tummy Time', color: '#4ECDC4', emoji: '🐣', fields: [] },
-          playtime: { label: 'Playtime', color: '#FFD93D', emoji: '🎈', fields: [] },
-          bath: { label: 'Bath', color: '#74B9FF', emoji: '🛁', fields: [] }
+          sleep: { label: 'Sleep', color: '#6C63FF', emoji: '😴', defaultDuration: 60, fields: [] },
+          tummy_time: { label: 'Tummy Time', color: '#4ECDC4', emoji: '🐣', defaultDuration: 10, fields: [] },
+          playtime: { label: 'Playtime', color: '#FFD93D', emoji: '🎈', defaultDuration: 20, fields: [] },
+          bath: { label: 'Bath', color: '#74B9FF', emoji: '🛁', defaultDuration: 15, fields: [] }
         }
       },
       health: {
         label: 'Health',
         icon: '🏥',
         types: {
-          medicine: { label: 'Medicine', color: '#E17055', emoji: '💊', fields: [] },
-          temperature: { label: 'Temperature', color: '#FDCB6E', emoji: '🌡️', fields: [] },
-          weight_check: { label: 'Weight Check', color: '#A29BFE', emoji: '⚖️', fields: [] },
-          massage: { label: 'Massage', color: '#FFC8DD', emoji: '💆', fields: [] }
+          medicine: { label: 'Medicine', color: '#E17055', emoji: '💊', defaultDuration: 0, fields: [] },
+          temperature: { label: 'Temperature', color: '#FDCB6E', emoji: '🌡️', defaultDuration: 0, fields: [] },
+          weight_check: { label: 'Weight Check', color: '#A29BFE', emoji: '⚖️', defaultDuration: 0, fields: [] },
+          massage: { label: 'Massage', color: '#FFC8DD', emoji: '💆', defaultDuration: 15, fields: [] }
         }
       }
     },

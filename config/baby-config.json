@@ -8,6 +8,7 @@
           "label": "Breast Feed",
           "color": "#7C5CFC",
           "emoji": "🤱",
+          "defaultDuration": 15,
           "fields": [
             {
               "key": "side",
@@ -29,6 +30,7 @@
           "label": "Formula Feed",
           "color": "#FF8FA3",
           "emoji": "🍼",
+          "defaultDuration": 15,
           "fields": [
             {
               "key": "quantity",
@@ -43,6 +45,7 @@
           "label": "Express Feed",
           "color": "#FF9F43",
           "emoji": "🥛",
+          "defaultDuration": 15,
           "fields": [
             {
               "key": "quantity",
@@ -63,6 +66,7 @@
           "label": "Poop",
           "color": "#A0522D",
           "emoji": "💩",
+          "defaultDuration": 5,
           "fields": [
             {
               "key": "color",
@@ -91,6 +95,7 @@
           "label": "Wet",
           "color": "#4A90D9",
           "emoji": "💧",
+          "defaultDuration": 5,
           "fields": [
             {
               "key": "diaperChange",
@@ -105,6 +110,7 @@
           "label": "Diaper Change",
           "color": "#6BBFA0",
           "emoji": "🧷",
+          "defaultDuration": 5,
           "fields": [
             {
               "key": "diaperType",
@@ -125,6 +131,7 @@
           "label": "Sleep",
           "color": "#6C63FF",
           "emoji": "😴",
+          "defaultDuration": 60,
           "fields": [
             {
               "key": "quality",
@@ -139,18 +146,21 @@
           "label": "Tummy Time",
           "color": "#4ECDC4",
           "emoji": "🐣",
+          "defaultDuration": 10,
           "fields": []
         },
         "playtime": {
           "label": "Playtime",
           "color": "#FFD93D",
           "emoji": "🎈",
+          "defaultDuration": 20,
           "fields": []
         },
         "bath": {
           "label": "Bath",
           "color": "#74B9FF",
           "emoji": "🛁",
+          "defaultDuration": 15,
           "fields": []
         }
       }
@@ -163,6 +173,7 @@
           "label": "Medicine",
           "color": "#E17055",
           "emoji": "💊",
+          "defaultDuration": 0,
           "fields": [
             {
               "key": "name",
@@ -182,6 +193,7 @@
           "label": "Temperature",
           "color": "#FDCB6E",
           "emoji": "🌡️",
+          "defaultDuration": 0,
           "fields": [
             {
               "key": "value",
@@ -196,6 +208,7 @@
           "label": "Weight Check",
           "color": "#A29BFE",
           "emoji": "⚖️",
+          "defaultDuration": 0,
           "fields": [
             {
               "key": "value",
@@ -210,6 +223,7 @@
           "label": "Massage",
           "color": "#FFC8DD",
           "emoji": "💆",
+          "defaultDuration": 15,
           "fields": []
         }
       }
