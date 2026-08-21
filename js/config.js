@@ -148,7 +148,15 @@ function getDefaultConfig() {
         types: {
           sleep: { label: 'Sleep', color: '#6C63FF', emoji: '😴', defaultDuration: 60, fields: [] },
           tummy_time: { label: 'Tummy Time', color: '#4ECDC4', emoji: '🐣', defaultDuration: 10, fields: [] },
-          playtime: { label: 'Playtime', color: '#FFD93D', emoji: '🎈', defaultDuration: 20, fields: [] },
+          playtime: {
+            label: 'Playtime',
+            color: '#FFD93D',
+            emoji: '🎈',
+            defaultDuration: 20,
+            fields: [
+              { key: 'mood', label: 'Mood', type: 'select', options: ["Happy", "Calm", "Curious", "Playful", "Fussy", "Energetic", "Sleepy"], required: false }
+            ]
+          },
           crying: {
             label: 'Crying',
             color: '#FF7675',

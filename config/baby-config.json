@@ -154,7 +154,15 @@
           "color": "#FFD93D",
           "emoji": "🎈",
           "defaultDuration": 20,
-          "fields": []
+          "fields": [
+            {
+              "key": "mood",
+              "label": "Mood",
+              "type": "select",
+              "options": ["Happy", "Calm", "Curious", "Playful", "Fussy", "Energetic", "Sleepy"],
+              "required": false
+            }
+          ]
         },
         "crying": {
           "label": "Crying",
