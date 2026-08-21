@@ -149,6 +149,15 @@ function getDefaultConfig() {
           sleep: { label: 'Sleep', color: '#6C63FF', emoji: '😴', defaultDuration: 60, fields: [] },
           tummy_time: { label: 'Tummy Time', color: '#4ECDC4', emoji: '🐣', defaultDuration: 10, fields: [] },
           playtime: { label: 'Playtime', color: '#FFD93D', emoji: '🎈', defaultDuration: 20, fields: [] },
+          crying: {
+            label: 'Crying',
+            color: '#FF7675',
+            emoji: '😭',
+            defaultDuration: 10,
+            fields: [
+              { key: 'reason', label: 'Reason / Cause', type: 'select', options: ["Hunger", "Colic / Gas", "Tired / Sleepy", "Wet Diaper", "Discomfort", "Teething", "Overstimulated", "Unknown"], required: false }
+            ]
+          },
           bath: { label: 'Bath', color: '#74B9FF', emoji: '🛁', defaultDuration: 15, fields: [] }
         }
       },
