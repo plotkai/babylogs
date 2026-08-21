@@ -5,7 +5,7 @@ import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, upd
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { exportJSON, importJSON, exportCSV, exportPDF } from './export.js';
-import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart } from './summary.js';
+import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
 
 // ==================== STATE ====================
 let currentView = 'welcome'; // 'welcome' | 'main' | 'summary' | 'settings'
@@ -1421,6 +1421,108 @@ async function loadSummaryData(period) {
     </div>
     ` : ''}
 
+    <!-- Care & Health Routine Calendar (Week & Month views) -->
+    ${period !== 'day' ? `
+    <div class="summary__card">
+      <div class="summary__card-title">
+        🗓️ Care & Routine Tracker
+        <span style="font-size: 11px; font-weight: normal; color: var(--color-text-secondary); margin-left: auto;">${period === 'week' ? 'Weekly Matrix' : 'Monthly Matrix'}</span>
+      </div>
+
+      <!-- Care Counters -->
+      <div class="summary__stat-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 14px;">
+        <div class="summary__stat">
+          <div class="summary__stat-value">🛁 ${summary.healthCare.bathCount}</div>
+          <div class="summary__stat-label">Baths</div>
+        </div>
+        <div class="summary__stat">
+          <div class="summary__stat-value">💆 ${summary.healthCare.massageCount}</div>
+          <div class="summary__stat-label">Massages</div>
+        </div>
+        <div class="summary__stat">
+          <div class="summary__stat-value">💊 ${summary.healthCare.medicineCount}</div>
+          <div class="summary__stat-label">Medicines</div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="care-calendar__legend">
+        <span class="care-legend-item"><span class="care-dot care-dot--bath"></span> Bath</span>
+        <span class="care-legend-item"><span class="care-dot care-dot--massage"></span> Massage</span>
+        <span class="care-legend-item"><span class="care-dot care-dot--medicine"></span> Medicine</span>
+        <span class="care-legend-item"><span class="care-dot care-dot--weight"></span> Weight</span>
+      </div>
+
+      <!-- Calendar View -->
+      ${period === 'week'
+        ? renderWeekCareCalendar(start, end, summary.healthCare.dailyCareMap)
+        : renderMonthCareCalendar(start, end, summary.healthCare.dailyCareMap)}
+
+      <!-- Medicine Details -->
+      ${summary.healthCare.medicines.length > 0 ? `
+        <div class="care-medicine-log">
+          <div class="care-medicine-log__title">💊 Administered Medicines:</div>
+          ${summary.healthCare.medicines.map(m => `
+            <div class="care-medicine-item">
+              <span class="care-medicine-item__name">${m.name}${m.dose ? ` (${m.dose})` : ''}</span>
+              <span class="care-medicine-item__time">${formatDateDisplay(new Date(m.time))} ${formatTime(m.time)}</span>
+            </div>
+          `).join('')}
+        </div>
+      ` : ''}
+    </div>
+
+    <!-- Weight Trajectory Tracker (Week & Month views) -->
+    <div class="summary__card">
+      <div class="summary__card-title">⚖️ Weight Trajectory</div>
+      ${summary.healthCare.weightChecks.length > 0 ? `
+        <div class="summary__stat-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 12px;">
+          <div class="summary__stat">
+            <div class="summary__stat-value">${summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value} <span style="font-size: 13px; font-weight: normal;">${settings.unit?.weight || 'kg'}</span></div>
+            <div class="summary__stat-label">Latest Weight</div>
+          </div>
+          <div class="summary__stat">
+            <div class="summary__stat-value" style="color: ${
+              summary.healthCare.weightChecks.length > 1
+                ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0
+                    ? 'var(--color-success)'
+                    : 'var(--color-danger)')
+                : 'var(--color-text)'
+            };">
+              ${
+                summary.healthCare.weightChecks.length > 1
+                  ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0 ? '+' : '') +
+                    (Math.round((summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value) * 100) / 100) + ' ' + (settings.unit?.weight || 'kg')
+                  : '—'
+              }
+            </div>
+            <div class="summary__stat-label">Trajectory Change</div>
+          </div>
+          <div class="summary__stat">
+            <div class="summary__stat-value">${summary.healthCare.weightChecks.length}</div>
+            <div class="summary__stat-label">Weight Checks</div>
+          </div>
+        </div>
+
+        <canvas class="summary__chart" id="chart-weight" style="height: 180px;"></canvas>
+
+        <div class="weight-log-list">
+          ${summary.healthCare.weightChecks.slice(-5).reverse().map(w => `
+            <div class="weight-log-item">
+              <span class="weight-log-item__date">${formatDateDisplay(new Date(w.time))} ${formatTime(w.time)}</span>
+              <span class="weight-log-item__val"><strong>${w.value} ${settings.unit?.weight || 'kg'}</strong></span>
+            </div>
+          `).join('')}
+        </div>
+      ` : `
+        <div style="text-align: center; padding: 18px 10px; color: var(--color-text-secondary); font-size: 13px;">
+          No weight checks logged for this ${period}.<br>
+          <span style="font-size: 11px; opacity: 0.8; display: inline-block; margin-top: 4px;">Log a Weight Check from the <strong>＋</strong> menu to visualize growth trajectory.</span>
+        </div>
+      `}
+    </div>
+    ` : ''}
+
     <!-- Export -->
     <div class="summary__export-btns">
       <button class="btn btn--secondary btn--sm" id="export-csv">📄 CSV</button>
@@ -1449,6 +1551,20 @@ async function loadSummaryData(period) {
           summary.sleep.longestNapMinutes
         ],
         colors: ['#6C63FF', '#4ECDC4', '#219B9D']
+      });
+    }
+
+    const weightCanvas = document.getElementById('chart-weight');
+    if (weightCanvas && summary.healthCare?.weightChecks?.length > 0) {
+      const wChecks = summary.healthCare.weightChecks;
+      renderLineChart(weightCanvas, {
+        labels: wChecks.map(w => {
+          const d = new Date(w.time);
+          return `${d.getDate()}/${d.getMonth() + 1}`;
+        }),
+        values: wChecks.map(w => w.value)
+      }, {
+        lineColor: '#A29BFE'
       });
     }
   }, 100);

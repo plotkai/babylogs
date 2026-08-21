@@ -52,6 +52,15 @@ export async function computeSummary(babyId, startDate, endDate) {
       massageCount: 0,
       massageMinutes: 0
     },
+    healthCare: {
+      bathCount: 0,
+      massageCount: 0,
+      massageMinutes: 0,
+      medicineCount: 0,
+      medicines: [],
+      weightChecks: [],
+      dailyCareMap: {}
+    },
     activities // raw data for export
   };
 
@@ -60,6 +69,10 @@ export async function computeSummary(babyId, startDate, endDate) {
 
   for (const a of activities) {
     const duration = a.duration || 0;
+    const dateKey = a.date || formatDateKey(new Date(a.startTime));
+    if (!summary.healthCare.dailyCareMap[dateKey]) {
+      summary.healthCare.dailyCareMap[dateKey] = { baths: 0, massages: 0, medicines: [], weights: [] };
+    }
 
     switch (a.eventType) {
       case 'breast_feed':
@@ -118,16 +131,52 @@ export async function computeSummary(babyId, startDate, endDate) {
         break;
       case 'bath':
         summary.other.bathCount++;
+        summary.healthCare.bathCount++;
+        summary.healthCare.dailyCareMap[dateKey].baths++;
         break;
       case 'medicine':
         summary.other.medicineCount++;
+        summary.healthCare.medicineCount++;
+        {
+          const med = {
+            id: a.id,
+            time: a.startTime,
+            date: dateKey,
+            name: a.subFields?.name || 'Medicine',
+            dose: a.subFields?.dose || '',
+            notes: a.notes || ''
+          };
+          summary.healthCare.medicines.push(med);
+          summary.healthCare.dailyCareMap[dateKey].medicines.push(med);
+        }
         break;
       case 'massage':
         summary.other.massageCount++;
         summary.other.massageMinutes += duration;
+        summary.healthCare.massageCount++;
+        summary.healthCare.massageMinutes += duration;
+        summary.healthCare.dailyCareMap[dateKey].massages++;
+        break;
+      case 'weight_check':
+        {
+          const val = parseFloat(a.subFields?.value) || 0;
+          if (val > 0) {
+            const weightItem = {
+              id: a.id,
+              time: a.startTime,
+              date: dateKey,
+              value: val
+            };
+            summary.healthCare.weightChecks.push(weightItem);
+            summary.healthCare.dailyCareMap[dateKey].weights.push(weightItem);
+          }
+        }
         break;
     }
   }
+
+  // Sort weight checks chronologically
+  summary.healthCare.weightChecks.sort((a, b) => new Date(a.time) - new Date(b.time));
 
   // Calculate average feed interval
   if (feedTimes.length > 1) {
@@ -434,4 +483,104 @@ export function renderLineChart(canvas, data, options = {}) {
     ctx.textAlign = 'center';
     ctx.fillText(label, padding.left + gap * i, height - 10);
   });
+}
+
+/**
+ * Render Week Care Calendar HTML
+ */
+export function renderWeekCareCalendar(startDate, endDate, dailyCareMap = {}) {
+  const days = [];
+  const curr = new Date(startDate);
+  const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+  while (curr <= endDate) {
+    days.push(new Date(curr));
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  const todayKey = formatDateKey(new Date());
+
+  return `
+    <div class="care-week-calendar">
+      ${days.map(d => {
+        const key = formatDateKey(d);
+        const dayInfo = dailyCareMap[key] || { baths: 0, massages: 0, medicines: [], weights: [] };
+        const dayName = dayNames[(d.getDay() + 6) % 7];
+        const isTodayDay = key === todayKey;
+        const hasCare = dayInfo.baths > 0 || dayInfo.massages > 0 || dayInfo.medicines.length > 0 || dayInfo.weights.length > 0;
+
+        return `
+          <div class="care-week-col ${isTodayDay ? 'care-week-col--today' : ''} ${hasCare ? 'care-week-col--has-data' : ''}">
+            <div class="care-week-col__header">
+              <span class="care-week-col__day">${dayName}</span>
+              <span class="care-week-col__num">${d.getDate()}</span>
+            </div>
+            <div class="care-week-col__items">
+              ${dayInfo.baths > 0 ? `<div class="care-badge care-badge--bath" title="Bath (${dayInfo.baths}x)">🛁 ${dayInfo.baths > 1 ? dayInfo.baths : ''}</div>` : ''}
+              ${dayInfo.massages > 0 ? `<div class="care-badge care-badge--massage" title="Massage (${dayInfo.massages}x)">💆 ${dayInfo.massages > 1 ? dayInfo.massages : ''}</div>` : ''}
+              ${dayInfo.medicines.length > 0 ? `<div class="care-badge care-badge--medicine" title="${dayInfo.medicines.map(m => m.name).join(', ')}">💊 ${dayInfo.medicines.length > 1 ? dayInfo.medicines.length : ''}</div>` : ''}
+              ${dayInfo.weights.length > 0 ? `<div class="care-badge care-badge--weight" title="Weight check">⚖️</div>` : ''}
+              ${!hasCare ? `<span class="care-badge--empty">·</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `;
+}
+
+/**
+ * Render Month Care Calendar HTML
+ */
+export function renderMonthCareCalendar(startDate, endDate, dailyCareMap = {}) {
+  const dayNames = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const todayKey = formatDateKey(new Date());
+
+  // Weekday offset (0 = Monday, ..., 6 = Sunday)
+  const startDay = (start.getDay() + 6) % 7;
+  const daysInMonth = end.getDate();
+
+  const cells = [];
+  // Empty leading cells
+  for (let i = 0; i < startDay; i++) {
+    cells.push('<div class="care-month-cell care-month-cell--empty"></div>');
+  }
+
+  // Days of month
+  for (let day = 1; day <= daysInMonth; day++) {
+    const d = new Date(start.getFullYear(), start.getMonth(), day, 12, 0, 0);
+    const key = formatDateKey(d);
+    const dayInfo = dailyCareMap[key] || { baths: 0, massages: 0, medicines: [], weights: [] };
+    const isTodayDay = key === todayKey;
+    const hasBath = dayInfo.baths > 0;
+    const hasMassage = dayInfo.massages > 0;
+    const hasMed = dayInfo.medicines.length > 0;
+    const hasWeight = dayInfo.weights.length > 0;
+    const hasAny = hasBath || hasMassage || hasMed || hasWeight;
+
+    cells.push(`
+      <div class="care-month-cell ${isTodayDay ? 'care-month-cell--today' : ''} ${hasAny ? 'care-month-cell--active' : ''}">
+        <span class="care-month-cell__num">${day}</span>
+        <div class="care-month-cell__dots">
+          ${hasBath ? `<span class="care-dot care-dot--bath" title="Bath"></span>` : ''}
+          ${hasMassage ? `<span class="care-dot care-dot--massage" title="Massage"></span>` : ''}
+          ${hasMed ? `<span class="care-dot care-dot--medicine" title="Medicine"></span>` : ''}
+          ${hasWeight ? `<span class="care-dot care-dot--weight" title="Weight Check"></span>` : ''}
+        </div>
+      </div>
+    `);
+  }
+
+  return `
+    <div class="care-month-calendar">
+      <div class="care-month-header">
+        ${dayNames.map(name => `<span class="care-month-header__day">${name}</span>`).join('')}
+      </div>
+      <div class="care-month-grid">
+        ${cells.join('')}
+      </div>
+    </div>
+  `;
 }
