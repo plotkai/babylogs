@@ -353,14 +353,43 @@ export function updateSetting(key, value) {
  * Export all data as JSON object
  */
 export async function exportAllData() {
-  const profiles = getProfiles();
+  return exportFilteredData();
+}
+
+/**
+ * Export filtered data as JSON object
+ */
+export async function exportFilteredData({ babyId = null, startDate = null, endDate = null } = {}) {
+  let profiles = getProfiles();
+  if (babyId) {
+    profiles = profiles.filter(p => p.id === babyId);
+  }
   const settings = getSettings();
-  const activities = await getAllActivities();
+  let activities = await getAllActivities();
+
+  if (babyId) {
+    activities = activities.filter(a => a.babyId === babyId);
+  }
+
+  if (startDate) {
+    activities = activities.filter(a => a.date >= startDate);
+  }
+  if (endDate) {
+    activities = activities.filter(a => a.date <= endDate);
+  }
+
+  // Sort activities chronologically
+  activities.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
 
   return {
     version: '1.0.0',
     exportDate: new Date().toISOString(),
     app: 'Babylogs by Plotkai',
+    filter: {
+      babyId: babyId || 'all',
+      startDate: startDate || null,
+      endDate: endDate || null
+    },
     profiles,
     settings,
     activities
@@ -368,25 +397,75 @@ export async function exportAllData() {
 }
 
 /**
- * Import all data from JSON object
+ * Import data with chosen strategy: 'merge' (default) or 'replace'
  */
-export async function importAllData(data) {
+export async function importDataWithMode(data, mode = 'merge') {
   if (!data || !data.profiles || !data.activities) {
-    throw new Error('Invalid backup file format');
+    throw new Error('Invalid backup file: missing profiles or activities data');
   }
 
-  // Restore profiles
-  saveProfiles(data.profiles);
+  if (mode === 'replace') {
+    // 1. Wipe everything
+    await clearAllData();
+    // 2. Restore profiles & settings
+    saveProfiles(data.profiles);
+    if (data.settings) {
+      saveSettings(data.settings);
+    }
+    // 3. Restore activities
+    await importActivities(data.activities);
 
-  // Restore settings if present
-  if (data.settings) {
-    saveSettings(data.settings);
+    return {
+      mode: 'replace',
+      profilesCount: data.profiles.length,
+      activitiesCount: data.activities.length
+    };
   }
 
-  // Restore activities
+  // mode === 'merge' (Keep old & merge)
+  const existingProfiles = getProfiles();
+  const existingProfileMap = new Map(existingProfiles.map(p => [p.id, p]));
+
+  for (const importedProfile of data.profiles) {
+    if (!existingProfileMap.has(importedProfile.id)) {
+      // Check if a profile with exact same name already exists to map IDs
+      const duplicateName = existingProfiles.find(p => p.name.trim().toLowerCase() === importedProfile.name.trim().toLowerCase());
+      if (duplicateName) {
+        for (const a of data.activities) {
+          if (a.babyId === importedProfile.id) {
+            a.babyId = duplicateName.id;
+          }
+        }
+      } else {
+        existingProfiles.push(importedProfile);
+      }
+    }
+  }
+  saveProfiles(existingProfiles);
+
+  // If no active baby is set, set the first profile
+  const settings = getSettings();
+  if (!settings.activeBabyId && existingProfiles.length > 0) {
+    settings.activeBabyId = existingProfiles[0].id;
+    saveSettings(settings);
+  }
+
+  // Merge activities into IndexedDB (put overwrites matches by key 'id', and adds new ones)
   await importActivities(data.activities);
 
-  return true;
+  return {
+    mode: 'merge',
+    profilesCount: data.profiles.length,
+    activitiesCount: data.activities.length,
+    totalProfiles: existingProfiles.length
+  };
+}
+
+/**
+ * Import all data from JSON object (legacy backward compatibility)
+ */
+export async function importAllData(data) {
+  return importDataWithMode(data, 'replace');
 }
 
 /**

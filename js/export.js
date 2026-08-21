@@ -1,68 +1,60 @@
-// js/export.js — Export: JSON backup, CSV, PDF
+// js/export.js — Export: JSON backup, CSV, PDF & Import handling
 
-import { exportAllData, importAllData } from './db.js';
+import { exportFilteredData, importDataWithMode } from './db.js';
 import { formatTime, formatDateFull, formatDuration } from './utils.js';
 import { getActivityType } from './config.js';
 
 /**
- * Export all data as JSON file download
+ * Export data as JSON file download with optional filtering
  */
-export async function exportJSON() {
+export async function exportJSON(options = {}) {
+  const { babyId = null, babyName = 'all-babies', startDate = null, endDate = null, dateRangeLabel = 'all-time' } = options;
   try {
-    const data = await exportAllData();
+    const data = await exportFilteredData({ babyId, startDate, endDate });
     const json = JSON.stringify(data, null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const dateStr = new Date().toISOString().split('T')[0];
-    downloadBlob(blob, `babylog-backup-${dateStr}.json`);
-    return true;
+    const safeBaby = (babyName || 'all-babies').replace(/[^a-zA-Z0-9]/g, '_');
+    const safeRange = (dateRangeLabel || 'all-time').replace(/[^a-zA-Z0-9]/g, '_');
+    downloadBlob(blob, `babylogs-backup-${safeBaby}-${safeRange}-${dateStr}.json`);
+    return data;
   } catch (err) {
-    console.error('Export failed:', err);
+    console.error('JSON Export failed:', err);
     throw err;
   }
 }
 
 /**
- * Import data from JSON file
- * Returns a promise that resolves when user selects a file and import completes
+ * Parse and validate JSON backup file
  */
-export function importJSON() {
-  return new Promise((resolve, reject) => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.json';
+export async function parseBackupFile(file) {
+  if (!file) throw new Error('No file selected');
+  const text = await file.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON file format');
+  }
 
-    input.onchange = async (e) => {
-      const file = e.target.files[0];
-      if (!file) { resolve(false); return; }
+  if (!data || !Array.isArray(data.profiles) || !Array.isArray(data.activities)) {
+    throw new Error('Invalid backup file: missing profiles or activities array');
+  }
 
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
+  return data;
+}
 
-        // Validate structure
-        if (!data.profiles || !data.activities) {
-          throw new Error('Invalid backup file: missing profiles or activities data');
-        }
-        if (data.app !== 'Babylogs by Plotkai' && data.app !== 'Babylog by Plotkai') {
-          console.warn('Backup file may not be from Babylogs');
-        }
-
-        await importAllData(data);
-        resolve(true);
-      } catch (err) {
-        console.error('Import failed:', err);
-        reject(err);
-      }
-    };
-
-    input.click();
-  });
+/**
+ * Import data from parsed backup object with mode ('merge' | 'replace')
+ */
+export async function executeImport(data, mode = 'merge') {
+  return await importDataWithMode(data, mode);
 }
 
 /**
  * Export activities as CSV file
  */
-export function exportCSV(activities, babyName, periodLabel) {
+export function exportCSV(activities, babyName = 'all-babies', periodLabel = 'all-time') {
   const headers = ['Date', 'Start Time', 'End Time', 'Duration', 'Event Type', 'Details', 'Notes'];
   const rows = activities.map(a => {
     const typeConfig = getActivityType(a.eventType);
@@ -98,21 +90,17 @@ export function exportCSV(activities, babyName, periodLabel) {
 
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
   const dateStr = new Date().toISOString().split('T')[0];
-  const safeName = (babyName || 'baby').replace(/[^a-zA-Z0-9]/g, '_');
-  downloadBlob(blob, `babylog-${safeName}-${periodLabel}-${dateStr}.csv`);
+  const safeName = (babyName || 'all-babies').replace(/[^a-zA-Z0-9]/g, '_');
+  const safePeriod = (periodLabel || 'all-time').replace(/[^a-zA-Z0-9]/g, '_');
+  downloadBlob(blob, `babylogs-${safeName}-${safePeriod}-${dateStr}.csv`);
 }
 
 /**
  * Export summary as printable PDF (via print dialog)
  */
 export function exportPDF() {
-  // Add print-specific class to body
   document.body.classList.add('print-mode');
-
-  // Trigger print dialog — user can "Save as PDF"
   window.print();
-
-  // Remove print class after a delay
   setTimeout(() => {
     document.body.classList.remove('print-mode');
   }, 1000);

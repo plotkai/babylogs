@@ -1,10 +1,10 @@
 // js/app.js — Main app logic, routing, UI rendering
 
 import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig } from './config.js';
-import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, getSettings as getAppSettings } from './db.js';
+import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
-import { exportJSON, importJSON, exportCSV, exportPDF } from './export.js';
+import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
 
 // ==================== STATE ====================
@@ -963,16 +963,13 @@ function renderSidebar() {
   document.getElementById('nav-summary')?.addEventListener('click', () => { closeSidebar(); renderSummary(); });
   document.getElementById('nav-manage-babies')?.addEventListener('click', () => { closeSidebar(); renderManageBabies(); });
   document.getElementById('nav-settings')?.addEventListener('click', () => { closeSidebar(); renderSettings(); });
-  document.getElementById('nav-export')?.addEventListener('click', async () => {
+  document.getElementById('nav-export')?.addEventListener('click', () => {
     closeSidebar();
-    try { await exportJSON(); showToast('Data exported ✓'); } catch { showToast('Export failed'); }
+    openExportModal();
   });
-  document.getElementById('nav-import')?.addEventListener('click', async () => {
+  document.getElementById('nav-import')?.addEventListener('click', () => {
     closeSidebar();
-    try {
-      const result = await importJSON();
-      if (result) { showToast('Data imported ✓'); renderMain(); }
-    } catch { showToast('Import failed'); }
+    openImportModal();
   });
   document.getElementById('nav-install')?.addEventListener('click', () => { closeSidebar(); triggerInstall(); });
   document.getElementById('nav-about')?.addEventListener('click', () => {
@@ -988,6 +985,297 @@ function openSidebar() {
 
 function closeSidebar() {
   document.getElementById('sidebar-overlay')?.classList.remove('active');
+}
+
+// ==================== EXPORT & IMPORT MODALS ====================
+
+function openExportModal() {
+  const overlay = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+
+  title.textContent = 'Export Data';
+
+  const profiles = getProfiles();
+  const settings = getSettings();
+  const todayKey = formatDateKey(new Date());
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-group__label">Select Baby</label>
+      <select class="form-group__select" id="export-baby-select">
+        <option value="all">👶 All Babies (${profiles.length})</option>
+        ${profiles.map(p => `
+          <option value="${p.id}" ${p.id === settings.activeBabyId ? 'selected' : ''}>👶 ${p.name}</option>
+        `).join('')}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label class="form-group__label">Date Range</label>
+      <select class="form-group__select" id="export-range-select">
+        <option value="all" selected>📅 All Time (Entire History)</option>
+        <option value="today">📅 Today</option>
+        <option value="week">📅 This Week</option>
+        <option value="month">📅 This Month</option>
+        <option value="custom">📅 Custom Date Range...</option>
+      </select>
+    </div>
+
+    <div class="form-group__row hidden" id="export-custom-range-row">
+      <div class="form-group">
+        <label class="form-group__label">From Date</label>
+        <input type="date" class="form-group__input" id="export-date-from" value="${todayKey}" max="${todayKey}">
+      </div>
+      <div class="form-group">
+        <label class="form-group__label">To Date</label>
+        <input type="date" class="form-group__input" id="export-date-to" value="${todayKey}" max="${todayKey}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-group__label">Choose Export Format</label>
+      <div class="export-format-grid">
+        <button class="btn btn--primary" id="btn-do-export-json">
+          💾 JSON Backup (Full Data)
+        </button>
+        <button class="btn btn--secondary" id="btn-do-export-csv">
+          📊 CSV Spreadsheet (Excel / Sheets)
+        </button>
+        <button class="btn btn--secondary" id="btn-do-export-pdf">
+          🖨️ Print / Save as PDF
+        </button>
+      </div>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button class="btn btn--secondary" id="modal-cancel">Close</button>
+  `;
+
+  overlay.classList.add('active');
+
+  const rangeSelect = document.getElementById('export-range-select');
+  const customRow = document.getElementById('export-custom-range-row');
+  rangeSelect?.addEventListener('change', () => {
+    if (rangeSelect.value === 'custom') {
+      customRow.classList.remove('hidden');
+    } else {
+      customRow.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+  // Helper to extract date bounds
+  function getSelectedExportBounds() {
+    const babyVal = document.getElementById('export-baby-select').value;
+    const babyId = babyVal === 'all' ? null : babyVal;
+    const babyName = babyId ? (profiles.find(p => p.id === babyId)?.name || 'baby') : 'all-babies';
+
+    const rangeVal = rangeSelect.value;
+    let startDate = null;
+    let endDate = null;
+    let rangeLabel = rangeVal;
+
+    const now = new Date();
+    if (rangeVal === 'today') {
+      startDate = todayKey;
+      endDate = todayKey;
+    } else if (rangeVal === 'week') {
+      const { start, end } = getDateRange('week', now);
+      startDate = formatDateKey(start);
+      endDate = formatDateKey(end);
+    } else if (rangeVal === 'month') {
+      const { start, end } = getDateRange('month', now);
+      startDate = formatDateKey(start);
+      endDate = formatDateKey(end);
+    } else if (rangeVal === 'custom') {
+      startDate = document.getElementById('export-date-from').value;
+      endDate = document.getElementById('export-date-to').value;
+      rangeLabel = `${startDate}_to_${endDate}`;
+    }
+
+    return { babyId, babyName, startDate, endDate, dateRangeLabel: rangeLabel };
+  }
+
+  // JSON Export
+  document.getElementById('btn-do-export-json').addEventListener('click', async () => {
+    try {
+      const bounds = getSelectedExportBounds();
+      await exportJSON(bounds);
+      closeModal();
+      showToast('JSON Backup downloaded ✓');
+    } catch (err) {
+      showToast('Export failed');
+    }
+  });
+
+  // CSV Export
+  document.getElementById('btn-do-export-csv').addEventListener('click', async () => {
+    try {
+      const bounds = getSelectedExportBounds();
+      const exportData = await exportFilteredData(bounds);
+      exportCSV(exportData.activities, bounds.babyName, bounds.dateRangeLabel);
+      closeModal();
+      showToast('CSV Spreadsheet downloaded ✓');
+    } catch (err) {
+      showToast('CSV Export failed');
+    }
+  });
+
+  // PDF Export
+  document.getElementById('btn-do-export-pdf').addEventListener('click', () => {
+    closeModal();
+    exportPDF();
+  });
+}
+
+function openImportModal() {
+  const overlay = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+
+  title.textContent = 'Import Data';
+
+  let selectedFile = null;
+  let parsedData = null;
+
+  body.innerHTML = `
+    <div class="form-group">
+      <label class="form-group__label">1. Choose Import Method</label>
+      <div class="import-mode-selector">
+        <label class="import-mode-card selected" id="import-mode-merge-label">
+          <input type="radio" name="import-mode" value="merge" checked>
+          <div class="import-mode-card__content">
+            <div class="import-mode-card__title">🔀 Keep Old & Merge Data <span style="font-size: 10px; color: var(--color-success); font-weight: bold; background: rgba(0, 184, 148, 0.1); padding: 1px 6px; border-radius: 10px;">Recommended</span></div>
+            <div class="import-mode-card__desc">Keeps all current baby profiles and activity history. New babies and activities from the backup file are added seamlessly without losing anything.</div>
+          </div>
+        </label>
+
+        <label class="import-mode-card" id="import-mode-replace-label">
+          <input type="radio" name="import-mode" value="replace">
+          <div class="import-mode-card__content">
+            <div class="import-mode-card__title" style="color: var(--color-danger);">⚠️ Replace with New Data</div>
+            <div class="import-mode-card__desc">Wipes all current local records and restores the exact state from the backup file.</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-group__label">2. Select Backup File (.json)</label>
+      <div class="import-file-box" id="import-file-box">
+        <div class="import-file-box__icon">📁</div>
+        <div class="import-file-box__text" id="import-file-text">Click or drag & drop Babylogs JSON backup file</div>
+        <div class="import-file-box__subtext">Supported format: .json</div>
+        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+      </div>
+    </div>
+
+    <div id="import-preview-area"></div>
+  `;
+
+  footer.innerHTML = `
+    <button class="btn btn--secondary" id="modal-cancel">Cancel</button>
+    <button class="btn btn--primary" id="btn-do-import" disabled>📥 Import Data</button>
+  `;
+
+  overlay.classList.add('active');
+
+  // Radio toggle highlighting
+  document.querySelectorAll('input[name="import-mode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.querySelectorAll('.import-mode-card').forEach(card => card.classList.remove('selected'));
+      radio.closest('.import-mode-card')?.classList.add('selected');
+    });
+  });
+
+  const fileBox = document.getElementById('import-file-box');
+  const fileInput = document.getElementById('import-file-input');
+  const fileText = document.getElementById('import-file-text');
+  const previewArea = document.getElementById('import-preview-area');
+  const importBtn = document.getElementById('btn-do-import');
+
+  fileBox.addEventListener('click', () => fileInput.click());
+
+  // Drag & drop
+  fileBox.addEventListener('dragover', (e) => { e.preventDefault(); fileBox.classList.add('dragover'); });
+  fileBox.addEventListener('dragleave', () => fileBox.classList.remove('dragover'));
+  fileBox.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    fileBox.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) {
+      await handleFile(e.dataTransfer.files[0]);
+    }
+  });
+
+  fileInput.addEventListener('change', async (e) => {
+    if (e.target.files.length > 0) {
+      await handleFile(e.target.files[0]);
+    }
+  });
+
+  async function handleFile(file) {
+    selectedFile = file;
+    fileText.textContent = `📄 ${file.name}`;
+    try {
+      parsedData = await parseBackupFile(file);
+      const babyNames = parsedData.profiles.map(p => p.name).join(', ') || 'None';
+      previewArea.innerHTML = `
+        <div class="import-preview-box">
+          <div class="import-preview-box__title">✓ Valid backup file</div>
+          <div class="import-preview-box__stat">👶 Babies: <strong>${parsedData.profiles.length}</strong> (${babyNames})</div>
+          <div class="import-preview-box__stat">📝 Activities: <strong>${parsedData.activities.length}</strong> logs</div>
+          ${parsedData.exportDate ? `<div class="import-preview-box__stat">📅 Exported: ${formatDateDisplay(new Date(parsedData.exportDate))}</div>` : ''}
+        </div>
+      `;
+      importBtn.disabled = false;
+    } catch (err) {
+      parsedData = null;
+      previewArea.innerHTML = `
+        <div class="import-preview-box" style="border-color: var(--color-danger); color: var(--color-danger);">
+          ✕ ${err.message || 'Invalid backup file'}
+        </div>
+      `;
+      importBtn.disabled = true;
+    }
+  }
+
+  document.getElementById('modal-cancel').addEventListener('click', closeModal);
+
+  importBtn.addEventListener('click', async () => {
+    if (!parsedData) return;
+    const mode = document.querySelector('input[name="import-mode"]:checked')?.value || 'merge';
+
+    if (mode === 'replace') {
+      showConfirm(
+        'Replace all data?',
+        'This will wipe all existing baby logs on this device and replace them with the backup file. Are you sure?',
+        async () => {
+          try {
+            const res = await executeImport(parsedData, 'replace');
+            closeModal();
+            showToast(`Restored ${res.profilesCount} babies & ${res.activitiesCount} logs ✓`);
+            renderMain();
+          } catch (err) {
+            showToast('Import failed');
+          }
+        }
+      );
+    } else {
+      try {
+        const res = await executeImport(parsedData, 'merge');
+        closeModal();
+        showToast(`Merged ${res.profilesCount} babies & ${res.activitiesCount} logs ✓`);
+        renderMain();
+      } catch (err) {
+        showToast('Import failed');
+      }
+    }
+  });
 }
 
 // ==================== MANAGE BABIES SCREEN ====================
