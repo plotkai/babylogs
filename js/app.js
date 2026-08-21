@@ -98,7 +98,32 @@ function renderWelcome() {
         ` : ''}
       </form>
     </div>
+
+    <!-- Modal Overlay -->
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal" id="modal">
+        <div class="modal__drag-handle"></div>
+        <div class="modal__header">
+          <h2 class="modal__title" id="modal-title"></h2>
+          <button class="modal__close-btn" id="modal-close">✕</button>
+        </div>
+        <div class="modal__body" id="modal-body"></div>
+        <div class="modal__footer" id="modal-footer"></div>
+      </div>
+    </div>
+
+    <!-- Confirm Dialog Overlay -->
+    <div class="confirm-overlay" id="confirm-overlay">
+      <div class="confirm-dialog" id="confirm-dialog"></div>
+    </div>
+
+    <div class="toast" id="toast"></div>
   `;
+
+  document.getElementById('modal-close')?.addEventListener('click', closeModal);
+  document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeModal();
+  });
 
   document.getElementById('welcome-form').addEventListener('submit', (e) => {
     e.preventDefault();
