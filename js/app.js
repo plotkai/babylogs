@@ -89,9 +89,11 @@ function renderWelcome() {
         <div class="welcome__cta">
           <button type="submit" class="btn btn--primary btn--full">Get Started 🚀</button>
         </div>
-        <button type="button" class="btn welcome__install-btn btn--full ${deferredInstallPrompt ? '' : 'hidden'}" id="welcome-install-btn">
+        ${!window.matchMedia('(display-mode: standalone)').matches ? `
+        <button type="button" class="btn welcome__install-btn btn--full" id="welcome-install-btn" style="margin-top: 10px;">
           📲 Install App
         </button>
+        ` : ''}
       </form>
     </div>
   `;
@@ -947,7 +949,7 @@ function renderSidebar() {
     <button class="sidebar__item" id="nav-import">
       <span class="sidebar__item-icon">📥</span> Import Data
     </button>
-    ${isInstallable && !isPWA ? `
+    ${!isPWA ? `
     <div class="sidebar__divider"></div>
     <button class="sidebar__item" id="nav-install">
       <span class="sidebar__item-icon">📲</span> Install App
@@ -2085,31 +2087,188 @@ function renderSettings() {
 
 // ==================== PWA INSTALL ====================
 
-async function triggerInstall() {
-  if (!deferredInstallPrompt) {
-    showToast('Install not available — try from your browser menu');
-    return;
+function detectOS() {
+  const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+  if (/iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) {
+    return 'ios';
+  }
+  if (/android/i.test(ua)) {
+    return 'android';
+  }
+  return 'desktop';
+}
+
+function triggerInstall() {
+  showInstallGuideModal();
+}
+
+function showInstallGuideModal(requestedTab = null) {
+  const detected = requestedTab || detectOS();
+  const overlay = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+
+  if (!overlay || !title || !body || !footer) return;
+
+  title.textContent = 'Install Babylogs App';
+
+  function renderTabContent(tab) {
+    if (tab === 'ios') {
+      return `
+        <div class="install-guide-content">
+          <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">
+            Install Babylogs on your <strong>iPhone or iPad</strong>:
+          </div>
+          <div class="install-steps-list">
+            <div class="install-step-item">
+              <div class="install-step-num">1</div>
+              <div class="install-step-text">Open <strong>babylogs.plotkai.in</strong> in <strong>Safari</strong> browser</div>
+            </div>
+            <div class="install-step-item">
+              <div class="install-step-num">2</div>
+              <div class="install-step-text">Tap the <strong>Share button</strong> <span style="font-size: 15px;">⎋</span> (the square icon with arrow pointing up in bottom bar)</div>
+            </div>
+            <div class="install-step-item">
+              <div class="install-step-num">3</div>
+              <div class="install-step-text">Scroll down and tap <strong>"Add to Home Screen"</strong> <span style="font-size: 15px;">⊞</span></div>
+            </div>
+            <div class="install-step-item">
+              <div class="install-step-num">4</div>
+              <div class="install-step-text">Tap <strong>"Add"</strong> in the top right corner</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (tab === 'android') {
+      return `
+        <div class="install-guide-content">
+          ${deferredInstallPrompt ? `
+            <div style="margin-bottom: 12px; text-align: center;">
+              <button class="btn btn--primary btn--full" id="btn-native-pwa-install" style="padding: 12px; font-size: 14px;">
+                ⚡ Install App Directly
+              </button>
+            </div>
+            <div style="text-align: center; font-size: 11px; color: var(--color-text-muted); margin-bottom: 10px;">— or install via browser menu —</div>
+          ` : ''}
+          <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">
+            Install on <strong>Android</strong> (Chrome / Samsung Internet):
+          </div>
+          <div class="install-steps-list">
+            <div class="install-step-item">
+              <div class="install-step-num">1</div>
+              <div class="install-step-text">Tap the <strong>Menu button</strong> (<strong>⋮</strong> three dots in top-right or bottom)</div>
+            </div>
+            <div class="install-step-item">
+              <div class="install-step-num">2</div>
+              <div class="install-step-text">Select <strong>"Install app"</strong> or <strong>"Add to Home screen"</strong></div>
+            </div>
+            <div class="install-step-item">
+              <div class="install-step-num">3</div>
+              <div class="install-step-text">Tap <strong>"Install"</strong> in the confirmation popup</div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    // desktop / other
+    return `
+      <div class="install-guide-content">
+        ${deferredInstallPrompt ? `
+          <div style="margin-bottom: 12px; text-align: center;">
+            <button class="btn btn--primary btn--full" id="btn-native-pwa-install" style="padding: 12px; font-size: 14px;">
+              ⚡ Install App on Desktop
+            </button>
+          </div>
+          <div style="text-align: center; font-size: 11px; color: var(--color-text-muted); margin-bottom: 10px;">— or install via browser menu —</div>
+        ` : ''}
+        <div style="font-size: 13px; color: var(--color-text-secondary); margin-bottom: 4px;">
+          Install on <strong>Chrome, Edge, Safari or Brave</strong>:
+        </div>
+        <div class="install-steps-list">
+          <div class="install-step-item">
+            <div class="install-step-num">1</div>
+            <div class="install-step-text">Click the <strong>Install icon</strong> (<strong>⊕</strong> or computer icon) in the right side of the address bar</div>
+          </div>
+          <div class="install-step-item">
+            <div class="install-step-num">2</div>
+            <div class="install-step-text">Click <strong>"Install"</strong> to add Babylogs as a desktop app</div>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
-  deferredInstallPrompt.prompt();
-  const { outcome } = await deferredInstallPrompt.userChoice;
-  if (outcome === 'accepted') {
-    showToast('Installing app...');
+  body.innerHTML = `
+    <div class="install-guide-tabs">
+      <button class="install-guide-tab ${detected === 'ios' ? 'active' : ''}" data-tab="ios">🍎 iOS / iPhone</button>
+      <button class="install-guide-tab ${detected === 'android' ? 'active' : ''}" data-tab="android">🤖 Android</button>
+      <button class="install-guide-tab ${detected === 'desktop' ? 'active' : ''}" data-tab="desktop">💻 Desktop</button>
+    </div>
+
+    <div id="install-guide-body">
+      ${renderTabContent(detected)}
+    </div>
+
+    <div class="install-guide-benefits">
+      <span>⚡ 100% Offline</span>
+      <span>🔒 Zero Cloud Privacy</span>
+      <span>📱 Full Screen</span>
+    </div>
+  `;
+
+  footer.innerHTML = `
+    <button class="btn btn--primary btn--full" id="modal-cancel">Got it</button>
+  `;
+
+  overlay.classList.add('active');
+
+  // Tab switching
+  document.querySelectorAll('.install-guide-tab').forEach(tabBtn => {
+    tabBtn.addEventListener('click', () => {
+      document.querySelectorAll('.install-guide-tab').forEach(t => t.classList.remove('active'));
+      tabBtn.classList.add('active');
+      const guideBody = document.getElementById('install-guide-body');
+      if (guideBody) {
+        guideBody.innerHTML = renderTabContent(tabBtn.dataset.tab);
+        bindNativeInstall();
+      }
+    });
+  });
+
+  function bindNativeInstall() {
+    const nativeBtn = document.getElementById('btn-native-pwa-install');
+    nativeBtn?.addEventListener('click', async () => {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        const { outcome } = await deferredInstallPrompt.userChoice;
+        if (outcome === 'accepted') {
+          showToast('Installing Babylogs app...');
+        }
+        deferredInstallPrompt = null;
+        closeModal();
+      }
+    });
   }
-  deferredInstallPrompt = null;
-  updateInstallButtons();
+
+  bindNativeInstall();
+  document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
 }
 
 function updateInstallButtons() {
   const welcomeBtn = document.getElementById('welcome-install-btn');
   const navBtn = document.getElementById('nav-install');
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
 
-  if (deferredInstallPrompt) {
-    welcomeBtn?.classList.remove('hidden');
-    navBtn?.classList.remove('hidden');
-  } else {
+  if (isPWA) {
     welcomeBtn?.classList.add('hidden');
     navBtn?.classList.add('hidden');
+  } else {
+    welcomeBtn?.classList.remove('hidden');
+    navBtn?.classList.remove('hidden');
   }
 }
 
