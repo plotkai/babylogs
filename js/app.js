@@ -415,6 +415,14 @@ async function loadTimeline() {
   const fab = document.getElementById('fab');
   if (fab) fab.classList.remove('fab--pulse');
 
+  // Sort activities based on timelineSortOrder setting ('asc' or 'desc')
+  const sortOrder = settings.timelineSortOrder || 'asc';
+  currentActivities.sort((a, b) => {
+    const timeA = new Date(a.startTime).getTime();
+    const timeB = new Date(b.startTime).getTime();
+    return sortOrder === 'desc' ? (timeB - timeA) : (timeA - timeB);
+  });
+
   // Filter activities if an event filter is active
   const displayActivities = currentEventFilter
     ? currentActivities.filter(a => a.eventType === currentEventFilter)
@@ -1496,6 +1504,17 @@ function renderSettings() {
       </div>
 
       <div class="settings__group">
+        <div class="settings__group-title">Timeline</div>
+        <div class="settings__row">
+          <span class="settings__row-label">Sort Order</span>
+          <select class="form-group__select" id="setting-timeline-sort" style="width: auto; padding: 6px 30px 6px 10px; font-size: 14px;">
+            <option value="asc" ${(settings.timelineSortOrder || 'asc') === 'asc' ? 'selected' : ''}>Oldest First (Ascending)</option>
+            <option value="desc" ${settings.timelineSortOrder === 'desc' ? 'selected' : ''}>Newest First (Descending)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings__group">
         <div class="settings__group-title">Notifications</div>
         <div class="settings__row">
           <span class="settings__row-label">Feed Reminders</span>
@@ -1542,6 +1561,12 @@ function renderSettings() {
         renderWelcome();
       });
     });
+  });
+
+  // Timeline Sort Order change
+  document.getElementById('setting-timeline-sort')?.addEventListener('change', (e) => {
+    updateSetting('timelineSortOrder', e.target.value);
+    showToast(`Timeline: ${e.target.value === 'desc' ? 'Newest first (Descending)' : 'Oldest first (Ascending)'}`);
   });
 
   // Unit changes

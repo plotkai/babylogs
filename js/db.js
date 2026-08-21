@@ -313,6 +313,7 @@ const DEFAULT_SETTINGS = {
     weight: 'kg',
     temperature: '°F'
   },
+  timelineSortOrder: 'asc',
   notificationsEnabled: false,
   feedReminderInterval: 180
 };
