@@ -6,6 +6,7 @@ import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateF
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
+import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
 
 // ==================== STATE ====================
 let currentView = 'welcome'; // 'welcome' | 'main' | 'summary' | 'settings'
@@ -65,6 +66,7 @@ async function init() {
 
 function renderWelcome() {
   currentView = 'welcome';
+  trackPageView('welcome', 'Babylogs - Welcome');
   const app = document.getElementById('app');
   const appConfig = getAppConfig();
 
@@ -126,6 +128,7 @@ function renderWelcome() {
 
 async function renderMain() {
   currentView = 'main';
+  trackPageView('main', 'Babylogs - Timeline');
   const app = document.getElementById('app');
   const appConfig = getAppConfig();
   const adConfig = getAdBannerConfig();
@@ -775,9 +778,11 @@ async function saveActivity() {
     if (editingActivity) {
       await updateActivity(entry);
       showToast('Activity updated ✓');
+      trackActivityLogged(eventType, true);
     } else {
       await addActivity(entry);
       showToast('Activity added ✓');
+      trackActivityLogged(eventType, false);
     }
 
     closeModal();
@@ -1136,6 +1141,7 @@ function openExportModal() {
     try {
       const bounds = getSelectedExportBounds();
       await exportJSON(bounds);
+      trackDataExport('json', bounds.dateRangeLabel);
       closeModal();
       showToast('JSON Backup downloaded ✓');
     } catch (err) {
@@ -1149,6 +1155,7 @@ function openExportModal() {
       const bounds = getSelectedExportBounds();
       const exportData = await exportFilteredData(bounds);
       exportCSV(exportData.activities, bounds.babyName, bounds.dateRangeLabel);
+      trackDataExport('csv', bounds.dateRangeLabel);
       closeModal();
       showToast('CSV Spreadsheet downloaded ✓');
     } catch (err) {
@@ -1158,6 +1165,8 @@ function openExportModal() {
 
   // PDF Export
   document.getElementById('btn-do-export-pdf').addEventListener('click', () => {
+    const bounds = getSelectedExportBounds();
+    trackDataExport('pdf', bounds.dateRangeLabel);
     closeModal();
     exportPDF();
   });
@@ -1288,6 +1297,7 @@ function openImportModal() {
         async () => {
           try {
             const res = await executeImport(parsedData, 'replace');
+            trackDataImport('replace', res.profilesCount, res.activitiesCount);
             closeModal();
             showToast(`Restored ${res.profilesCount} babies & ${res.activitiesCount} logs ✓`);
             renderMain();
@@ -1299,6 +1309,7 @@ function openImportModal() {
     } else {
       try {
         const res = await executeImport(parsedData, 'merge');
+        trackDataImport('merge', res.profilesCount, res.activitiesCount);
         closeModal();
         showToast(`Merged ${res.profilesCount} babies & ${res.activitiesCount} logs ✓`);
         renderMain();
@@ -1313,6 +1324,7 @@ function openImportModal() {
 
 function renderManageBabies() {
   currentView = 'manage-babies';
+  trackPageView('manage-babies', 'Babylogs - Manage Babies');
   const app = document.getElementById('app');
   const profiles = getProfiles();
   const settings = getSettings();
@@ -1494,6 +1506,7 @@ function confirmDeleteBaby(baby) {
 
 async function renderSummary() {
   currentView = 'summary';
+  trackPageView('summary', 'Babylogs - Summary');
   summaryPeriod = 'day';
   summaryDate = new Date(currentDate);
   const app = document.getElementById('app');
@@ -1904,6 +1917,7 @@ async function loadSummaryData(period) {
 
 function renderSettings() {
   currentView = 'settings';
+  trackPageView('settings', 'Babylogs - Settings');
   const app = document.getElementById('app');
   const settings = getSettings();
   const config = getConfig();
@@ -2104,6 +2118,7 @@ function triggerInstall() {
 
 function showInstallGuideModal(requestedTab = null) {
   const detected = requestedTab || detectOS();
+  trackPWAInstall('view_guide', detected);
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
   const body = document.getElementById('modal-body');
@@ -2245,6 +2260,7 @@ function showInstallGuideModal(requestedTab = null) {
       if (deferredInstallPrompt) {
         deferredInstallPrompt.prompt();
         const { outcome } = await deferredInstallPrompt.userChoice;
+        trackPWAInstall('prompt_click', outcome);
         if (outcome === 'accepted') {
           showToast('Installing Babylogs app...');
         }

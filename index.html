@@ -57,6 +57,32 @@
   <link rel="icon" type="image/svg+xml" href="./favicon.svg">
   <link rel="apple-touch-icon" href="./icons/icon-192.png">
 
+  <!-- Google Analytics (GA4) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-0Z45Q5363P"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    (function() {
+      try {
+        var uidKey = 'babylogs_analytics_uid';
+        var uid = localStorage.getItem(uidKey);
+        if (!uid) {
+          uid = 'u_' + Math.random().toString(36).substring(2, 11) + '_' + Date.now().toString(36);
+          localStorage.setItem(uidKey, uid);
+        }
+        gtag('config', 'G-0Z45Q5363P', {
+          'user_id': uid,
+          'send_page_view': true,
+          'anonymize_ip': true
+        });
+      } catch (e) {
+        gtag('config', 'G-0Z45Q5363P', { 'send_page_view': true });
+      }
+    })();
+  </script>
+
   <!-- Google AdSense -->
   <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3660780299197648" crossorigin="anonymous"></script>
 
