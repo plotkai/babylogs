@@ -974,8 +974,7 @@ function renderSidebar() {
   document.getElementById('nav-install')?.addEventListener('click', () => { closeSidebar(); triggerInstall(); });
   document.getElementById('nav-about')?.addEventListener('click', () => {
     closeSidebar();
-    const appConfig = getAppConfig();
-    showConfirm(appConfig.title, `Version ${appConfig.version}\n\nA baby activity tracker built with ❤️ by Plotkai.\n\nAll data is stored locally in your browser.`, null, 'Got it');
+    showAboutModal();
   });
 }
 
@@ -985,6 +984,36 @@ function openSidebar() {
 
 function closeSidebar() {
   document.getElementById('sidebar-overlay')?.classList.remove('active');
+}
+
+function showAboutModal() {
+  const appConfig = getAppConfig();
+  const overlay = document.getElementById('confirm-overlay');
+  const dialog = document.getElementById('confirm-dialog');
+  if (!overlay || !dialog) return;
+
+  dialog.innerHTML = `
+    <div class="confirm-dialog__title">👶 ${appConfig.title || 'Babylogs by Plotkai'}</div>
+    <div class="confirm-dialog__message" style="line-height: 1.5; font-size: 13px;">
+      <div style="font-weight: 600; margin-bottom: 6px; color: var(--color-text);">Version ${appConfig.version || '1.0.0'}</div>
+      <div style="color: var(--color-text-secondary); margin-bottom: 12px;">
+        A private, simple baby activity tracker built with ❤️ by Plotkai.<br>
+        All your baby's logs are stored 100% locally on your device with zero cloud servers.
+      </div>
+      <div style="padding: 10px 12px; background: var(--color-surface-alt); border-radius: var(--radius-sm); border: 1px solid var(--color-border); text-align: left;">
+        💌 For any feedback, queries or feature requests, <a href="mailto:support@plotkai.in?subject=Babylogs%20Query" style="color: var(--color-accent); font-weight: 600; text-decoration: underline;">contact us</a> at <strong style="color: var(--color-text);">support@plotkai.in</strong>
+      </div>
+    </div>
+    <div class="confirm-dialog__actions" style="margin-top: 16px;">
+      <button class="btn btn--primary" id="confirm-ok">Got it</button>
+    </div>
+  `;
+
+  overlay.classList.add('active');
+
+  document.getElementById('confirm-ok').addEventListener('click', () => {
+    overlay.classList.remove('active');
+  });
 }
 
 // ==================== EXPORT & IMPORT MODALS ====================
@@ -1949,12 +1978,33 @@ function renderSettings() {
           </button>
         </div>
       </div>
+
+      <div class="settings__group">
+        <div class="settings__group-title">About</div>
+        <div class="settings__row">
+          <div>
+            <div class="settings__row-label">${config.app?.title || 'Babylogs by Plotkai'}</div>
+            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Version ${config.app?.version || '1.0.0'} • 100% Local & Private</div>
+          </div>
+          <button class="btn btn--secondary btn--sm" id="btn-settings-about" style="margin-left: 12px; white-space: nowrap;">
+            ℹ️ Details
+          </button>
+        </div>
+        <div class="settings__subtext">
+          💌 For any feedback, questions or requests, <a href="mailto:support@plotkai.in?subject=Babylogs%20Query" style="color: var(--color-accent); font-weight: 600; text-decoration: underline;">contact us</a> at <strong>support@plotkai.in</strong>
+        </div>
+      </div>
     </div>
 
     <div class="toast" id="toast"></div>
   `;
 
   document.getElementById('back-btn').addEventListener('click', renderMain);
+
+  // Settings About button
+  document.getElementById('btn-settings-about')?.addEventListener('click', () => {
+    showAboutModal();
+  });
 
   // Clear all data
   document.getElementById('btn-clear-data')?.addEventListener('click', () => {
