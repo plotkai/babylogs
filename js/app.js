@@ -4,7 +4,7 @@ import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivit
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
-import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport } from './export.js';
+import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
 import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
 
@@ -59,6 +59,48 @@ async function init() {
       updateSetting('activeBabyId', profiles[0].id);
     }
     renderMain();
+  }
+
+  // Check incoming Web Share Target or File Handling API ("Open With Babylogs")
+  checkIncomingSharedBackup();
+}
+
+/**
+ * Handle incoming shared backup files from Web Share Target or File Handling API
+ */
+async function checkIncomingSharedBackup() {
+  // 1. File Handling API (Desktop / Android "Open with Babylogs")
+  if ('launchQueue' in window && 'files' in LaunchParams.prototype) {
+    launchQueue.setConsumer(async (launchParams) => {
+      if (launchParams.files && launchParams.files.length > 0) {
+        try {
+          const file = await launchParams.files[0].getFile();
+          const parsedData = await parseBackupFile(file);
+          openImportModal(parsedData, file.name);
+        } catch (err) {
+          showToast(`Could not open shared file: ${err.message}`);
+        }
+      }
+    });
+  }
+
+  // 2. Web Share Target POST cache or URL param
+  try {
+    if ('caches' in window) {
+      const shareCache = await caches.open('babylogs-share-target');
+      const match = await shareCache.match('./incoming-backup.json');
+      if (match) {
+        const text = await match.text();
+        await shareCache.delete('./incoming-backup.json');
+        if (window.location.search.includes('shared_target')) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        const parsedData = JSON.parse(text);
+        setTimeout(() => openImportModal(parsedData, 'Shared Backup from WhatsApp / App'), 300);
+      }
+    }
+  } catch (err) {
+    console.debug('No incoming share target data:', err);
   }
 }
 
@@ -1056,7 +1098,7 @@ function openExportModal() {
   const body = document.getElementById('modal-body');
   const footer = document.getElementById('modal-footer');
 
-  title.textContent = 'Export Data';
+  title.textContent = 'Export & Share Data';
 
   const profiles = getProfiles();
   const settings = getSettings();
@@ -1095,14 +1137,24 @@ function openExportModal() {
       </div>
     </div>
 
-    <div class="form-group">
-      <label class="form-group__label">Choose Export Format</label>
+    <div class="form-group" style="margin-top: 18px;">
+      <label class="form-group__label">1. One-Tap Share to WhatsApp / Apps</label>
+      <button class="btn btn--whatsapp btn--full" id="btn-do-share-whatsapp" style="padding: 13px; font-size: 14px;">
+        📲 Share Backup via WhatsApp / Apps
+      </button>
+      <div style="font-size: 11px; color: var(--color-text-muted); margin-top: 4px; text-align: center;">
+        Directly send backup file to partner or caregiver to open in Babylogs
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top: 14px;">
+      <label class="form-group__label">2. Or Download File Locally</label>
       <div class="export-format-grid">
         <button class="btn btn--primary" id="btn-do-export-json">
           💾 JSON Backup (Full Data)
         </button>
         <button class="btn btn--secondary" id="btn-do-export-csv">
-          📊 CSV Spreadsheet (Excel / Sheets)
+          📊 CSV Spreadsheet (Excel)
         </button>
         <button class="btn btn--secondary" id="btn-do-export-pdf">
           🖨️ Print / Save as PDF
@@ -1112,7 +1164,7 @@ function openExportModal() {
   `;
 
   footer.innerHTML = `
-    <button class="btn btn--secondary" id="modal-cancel">Close</button>
+    <button class="btn btn--secondary btn--full" id="modal-cancel">Close</button>
   `;
 
   overlay.classList.add('active');
@@ -1161,6 +1213,21 @@ function openExportModal() {
     return { babyId, babyName, startDate, endDate, dateRangeLabel: rangeLabel };
   }
 
+  // One-Tap WhatsApp / App Share
+  document.getElementById('btn-do-share-whatsapp')?.addEventListener('click', async () => {
+    try {
+      const bounds = getSelectedExportBounds();
+      const res = await shareBackup(bounds);
+      if (res && res.shared) {
+        trackDataExport('share_whatsapp', bounds.dateRangeLabel);
+        closeModal();
+        showToast('Backup shared successfully ✓');
+      }
+    } catch (err) {
+      showToast('Sharing failed');
+    }
+  });
+
   // JSON Export
   document.getElementById('btn-do-export-json').addEventListener('click', async () => {
     try {
@@ -1197,16 +1264,16 @@ function openExportModal() {
   });
 }
 
-function openImportModal() {
+function openImportModal(preloadedData = null, preloadedTitle = '') {
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
   const body = document.getElementById('modal-body');
   const footer = document.getElementById('modal-footer');
 
-  title.textContent = 'Import Data';
+  title.textContent = preloadedData ? '📥 Import Shared Backup' : 'Import Data';
 
   let selectedFile = null;
-  let parsedData = null;
+  let parsedData = preloadedData || null;
 
   body.innerHTML = `
     <div class="form-group">
@@ -1215,27 +1282,27 @@ function openImportModal() {
         <label class="import-mode-card selected" id="import-mode-merge-label">
           <input type="radio" name="import-mode" value="merge" checked>
           <div class="import-mode-card__content">
-            <div class="import-mode-card__title">🔀 Keep Old & Merge Data <span style="font-size: 10px; color: var(--color-success); font-weight: bold; background: rgba(0, 184, 148, 0.1); padding: 1px 6px; border-radius: 10px;">Recommended</span></div>
-            <div class="import-mode-card__desc">Keeps all current baby profiles and activity history. New babies and activities from the backup file are added seamlessly without losing anything.</div>
+            <div class="import-mode-card__title">⚡ Smart Merge <span style="font-size: 10px; color: var(--color-success); font-weight: bold; background: rgba(0, 184, 148, 0.1); padding: 1px 6px; border-radius: 10px;">Recommended</span></div>
+            <div class="import-mode-card__desc">Intelligently matches babies by name, adds new activities, and automatically skips duplicates. No data is lost!</div>
           </div>
         </label>
 
         <label class="import-mode-card" id="import-mode-replace-label">
           <input type="radio" name="import-mode" value="replace">
           <div class="import-mode-card__content">
-            <div class="import-mode-card__title" style="color: var(--color-danger);">⚠️ Replace with New Data</div>
-            <div class="import-mode-card__desc">Wipes all current local records and restores the exact state from the backup file.</div>
+            <div class="import-mode-card__title" style="color: var(--color-danger);">⚠️ Full Overwrite (Replace All)</div>
+            <div class="import-mode-card__desc">Wipes all current local records and restores the exact state from this backup file.</div>
           </div>
         </label>
       </div>
     </div>
 
     <div class="form-group">
-      <label class="form-group__label">2. Select Backup File (.json)</label>
+      <label class="form-group__label">2. ${preloadedData ? 'Shared Backup File' : 'Select Backup File (.json)'}</label>
       <div class="import-file-box" id="import-file-box">
         <div class="import-file-box__icon">📁</div>
-        <div class="import-file-box__text" id="import-file-text">Click or drag & drop Babylogs JSON backup file</div>
-        <div class="import-file-box__subtext">Supported format: .json</div>
+        <div class="import-file-box__text" id="import-file-text">${preloadedData ? `📄 ${preloadedTitle || 'Shared Backup Ready'}` : 'Click or drag & drop Babylogs JSON backup file'}</div>
+        <div class="import-file-box__subtext">${preloadedData ? 'Tap to change file' : 'Supported format: .json'}</div>
         <input type="file" id="import-file-input" accept=".json" style="display: none;">
       </div>
     </div>
@@ -1245,7 +1312,7 @@ function openImportModal() {
 
   footer.innerHTML = `
     <button class="btn btn--secondary" id="modal-cancel">Cancel</button>
-    <button class="btn btn--primary" id="btn-do-import" disabled>📥 Import Data</button>
+    <button class="btn btn--primary" id="btn-do-import" ${preloadedData ? '' : 'disabled'}>⚡ Smart Merge Now</button>
   `;
 
   overlay.classList.add('active');
@@ -1255,6 +1322,10 @@ function openImportModal() {
     radio.addEventListener('change', () => {
       document.querySelectorAll('.import-mode-card').forEach(card => card.classList.remove('selected'));
       radio.closest('.import-mode-card')?.classList.add('selected');
+      const importBtn = document.getElementById('btn-do-import');
+      if (importBtn) {
+        importBtn.textContent = radio.value === 'merge' ? '⚡ Smart Merge Now' : '⚠️ Replace All Data';
+      }
     });
   });
 
@@ -1283,21 +1354,52 @@ function openImportModal() {
     }
   });
 
+  async function renderAnalysisPreview(data) {
+    try {
+      const analysis = await inspectBackup(data);
+      const babyNames = data.profiles.map(p => p.name).join(', ') || 'None';
+      previewArea.innerHTML = `
+        <div class="import-preview-box">
+          <div class="import-preview-box__title">✓ Valid Babylogs Backup</div>
+          <div class="import-preview-box__stat">
+            👶 <strong>${analysis.totalProfiles} Baby Profile${analysis.totalProfiles > 1 ? 's' : ''}</strong> (${babyNames})
+            <div>
+              ${analysis.matchedBabies.length > 0 ? `<span class="smart-stat-pill smart-stat-pill--matched">🔗 ${analysis.matchedBabies.length} matched</span>` : ''}
+              ${analysis.newBabies.length > 0 ? `<span class="smart-stat-pill smart-stat-pill--new">＋ ${analysis.newBabies.length} new</span>` : ''}
+            </div>
+          </div>
+          <div class="import-preview-box__stat" style="margin-top: 6px;">
+            📝 <strong>${analysis.totalActivities} Total Activities</strong>
+            <div>
+              <span class="smart-stat-pill smart-stat-pill--new">✨ ${analysis.newActivitiesCount} new to add</span>
+              ${analysis.duplicateActivitiesCount > 0 ? `<span class="smart-stat-pill smart-stat-pill--duplicate">✓ ${analysis.duplicateActivitiesCount} duplicates will be skipped</span>` : ''}
+            </div>
+          </div>
+          ${analysis.exportDate ? `<div class="import-preview-box__stat" style="margin-top: 6px; font-size: 11px;">📅 Backup Created: ${formatDateDisplay(new Date(analysis.exportDate))}</div>` : ''}
+        </div>
+      `;
+      importBtn.disabled = false;
+    } catch (err) {
+      parsedData = null;
+      previewArea.innerHTML = `
+        <div class="import-preview-box" style="border-color: var(--color-danger); color: var(--color-danger);">
+          ✕ ${err.message || 'Invalid backup file'}
+        </div>
+      `;
+      importBtn.disabled = true;
+    }
+  }
+
+  if (preloadedData) {
+    renderAnalysisPreview(preloadedData);
+  }
+
   async function handleFile(file) {
     selectedFile = file;
     fileText.textContent = `📄 ${file.name}`;
     try {
       parsedData = await parseBackupFile(file);
-      const babyNames = parsedData.profiles.map(p => p.name).join(', ') || 'None';
-      previewArea.innerHTML = `
-        <div class="import-preview-box">
-          <div class="import-preview-box__title">✓ Valid backup file</div>
-          <div class="import-preview-box__stat">👶 Babies: <strong>${parsedData.profiles.length}</strong> (${babyNames})</div>
-          <div class="import-preview-box__stat">📝 Activities: <strong>${parsedData.activities.length}</strong> logs</div>
-          ${parsedData.exportDate ? `<div class="import-preview-box__stat">📅 Exported: ${formatDateDisplay(new Date(parsedData.exportDate))}</div>` : ''}
-        </div>
-      `;
-      importBtn.disabled = false;
+      await renderAnalysisPreview(parsedData);
     } catch (err) {
       parsedData = null;
       previewArea.innerHTML = `
@@ -1318,7 +1420,7 @@ function openImportModal() {
     if (mode === 'replace') {
       showConfirm(
         'Replace all data?',
-        'This will wipe all existing baby logs on this device and replace them with the backup file. Are you sure?',
+        'This will permanently wipe all existing baby logs on this device and restore the exact backup. Are you sure?',
         async () => {
           try {
             const res = await executeImport(parsedData, 'replace');
@@ -1336,7 +1438,7 @@ function openImportModal() {
         const res = await executeImport(parsedData, 'merge');
         trackDataImport('merge', res.profilesCount, res.activitiesCount);
         closeModal();
-        showToast(`Merged ${res.profilesCount} babies & ${res.activitiesCount} logs ✓`);
+        showToast(`Smart Merge: +${res.newActivitiesAdded} activities added, ${res.duplicateActivitiesSkipped} duplicates skipped ✓`);
         renderMain();
       } catch (err) {
         showToast('Import failed');
@@ -1882,6 +1984,7 @@ async function loadSummaryData(period) {
 
     <!-- Export -->
     <div class="summary__export-btns">
+      <button class="btn btn--whatsapp btn--sm" id="btn-summary-share">💬 Share WhatsApp</button>
       <button class="btn btn--secondary btn--sm" id="export-csv">📄 CSV</button>
       <button class="btn btn--secondary btn--sm" id="export-pdf">📋 PDF</button>
     </div>
@@ -1951,7 +2054,16 @@ async function loadSummaryData(period) {
     }
   }, 100);
 
-  // Export buttons
+  // Share & Export buttons
+  document.getElementById('btn-summary-share')?.addEventListener('click', async () => {
+    const baby = profiles.find(p => p.id === settings.activeBabyId);
+    try {
+      await shareSummaryText(summary, baby, period);
+    } catch (err) {
+      showToast('Sharing failed');
+    }
+  });
+
   document.getElementById('export-csv')?.addEventListener('click', () => {
     const baby = profiles.find(p => p.id === settings.activeBabyId);
     exportCSV(summary.activities, baby?.name, period);

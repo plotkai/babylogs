@@ -1,6 +1,6 @@
 // sw.js — Service Worker for Babylogs PWA (offline-first caching)
 
-const CACHE_NAME = 'babylogs-v34';
+const CACHE_NAME = 'babylogs-v35';
 const ASSETS = [
   './',
   './index.html',
@@ -37,15 +37,37 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((keys) => {
       return Promise.all(
         keys
-          .filter((key) => key !== CACHE_NAME)
+          .filter((key) => key !== CACHE_NAME && key !== 'babylogs-share-target')
           .map((key) => caches.delete(key))
       );
     }).then(() => self.clients.claim())
   );
 });
 
-// Fetch — cache-first, fall back to network
+// Fetch — handle Share Target POST & cache-first GET
 self.addEventListener('fetch', (event) => {
+  // Handle Web Share Target POST request
+  if (event.request.method === 'POST' && event.request.url.includes('share-target')) {
+    event.respondWith((async () => {
+      try {
+        const formData = await event.request.formData();
+        const file = formData.get('backup') || formData.get('file');
+        if (file) {
+          const text = await file.text();
+          const shareCache = await caches.open('babylogs-share-target');
+          await shareCache.put(
+            './incoming-backup.json',
+            new Response(text, { headers: { 'content-type': 'application/json' } })
+          );
+        }
+      } catch (err) {
+        console.error('Error handling share target POST:', err);
+      }
+      return Response.redirect('./index.html?shared_target=1', 303);
+    })());
+    return;
+  }
+
   // Skip non-GET requests
   if (event.request.method !== 'GET') return;
 

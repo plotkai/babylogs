@@ -1083,6 +1083,65 @@ body {
   color: var(--color-text-secondary);
 }
 
+/* ==================== SHARE & SMART MERGE STYLES ==================== */
+.btn--whatsapp {
+  background: #25D366;
+  color: #FFFFFF;
+  border: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(37, 211, 102, 0.3);
+}
+
+.btn--whatsapp:hover, .btn--whatsapp:active {
+  background: #20BA5A;
+  color: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.share-action-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.share-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.smart-stat-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-top: 4px;
+  margin-right: 4px;
+}
+
+.smart-stat-pill--new {
+  background: rgba(33, 155, 157, 0.12);
+  color: var(--color-secondary);
+}
+
+.smart-stat-pill--duplicate {
+  background: rgba(255, 128, 0, 0.12);
+  color: var(--color-accent);
+}
+
+.smart-stat-pill--matched {
+  background: rgba(76, 31, 122, 0.12);
+  color: var(--color-primary);
+}
+
 /* ==================== INSTALL GUIDE MODAL ==================== */
 .install-guide-tabs {
   display: flex;

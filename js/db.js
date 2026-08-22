@@ -397,10 +397,72 @@ export async function exportFilteredData({ babyId = null, startDate = null, endD
 }
 
 /**
- * Import data with chosen strategy: 'merge' (default) or 'replace'
+ * Analyze backup data against current DB for smart preview (matched vs new babies, new vs duplicate activities)
+ */
+export async function analyzeImportData(data) {
+  if (!data || !Array.isArray(data.profiles) || !Array.isArray(data.activities)) {
+    throw new Error('Invalid backup file: missing profiles or activities array');
+  }
+
+  const existingProfiles = getProfiles();
+  const existingProfileMap = new Map(existingProfiles.map(p => [p.id, p]));
+  const existingNameMap = new Map(existingProfiles.map(p => [p.name.trim().toLowerCase(), p]));
+
+  const idMap = new Map();
+  const matchedBabies = [];
+  const newBabies = [];
+
+  for (const imp of data.profiles) {
+    if (existingProfileMap.has(imp.id)) {
+      const match = existingProfileMap.get(imp.id);
+      idMap.set(imp.id, match.id);
+      matchedBabies.push({ imported: imp, existing: match });
+    } else if (existingNameMap.has(imp.name.trim().toLowerCase())) {
+      const match = existingNameMap.get(imp.name.trim().toLowerCase());
+      idMap.set(imp.id, match.id);
+      matchedBabies.push({ imported: imp, existing: match });
+    } else {
+      idMap.set(imp.id, imp.id);
+      newBabies.push(imp);
+    }
+  }
+
+  // Check activities deduplication
+  const existingActivities = await getAllActivities();
+  const existingIdSet = new Set(existingActivities.map(a => a.id));
+  const existingFingerprintSet = new Set(
+    existingActivities.map(a => `${a.babyId}_${a.eventType}_${a.date}_${(a.startTime || '').substring(0, 16)}`)
+  );
+
+  let newActivitiesCount = 0;
+  let duplicateActivitiesCount = 0;
+
+  for (const a of data.activities) {
+    const targetBabyId = idMap.get(a.babyId) || a.babyId;
+    const fp = `${targetBabyId}_${a.eventType}_${a.date}_${(a.startTime || '').substring(0, 16)}`;
+    if (existingIdSet.has(a.id) || existingFingerprintSet.has(fp)) {
+      duplicateActivitiesCount++;
+    } else {
+      newActivitiesCount++;
+    }
+  }
+
+  return {
+    totalProfiles: data.profiles.length,
+    matchedBabies,
+    newBabies,
+    totalActivities: data.activities.length,
+    newActivitiesCount,
+    duplicateActivitiesCount,
+    exportDate: data.exportDate || null
+  };
+}
+
+/**
+ * Import data with chosen strategy: 'merge' (Smart Merge) or 'replace'
  */
 export async function importDataWithMode(data, mode = 'merge') {
-  if (!data || !data.profiles || !data.activities) {
+  if (!data || !Array.isArray(data.profiles) || !Array.isArray(data.activities)) {
     throw new Error('Invalid backup file: missing profiles or activities data');
   }
 
@@ -418,29 +480,40 @@ export async function importDataWithMode(data, mode = 'merge') {
     return {
       mode: 'replace',
       profilesCount: data.profiles.length,
-      activitiesCount: data.activities.length
+      activitiesCount: data.activities.length,
+      newActivitiesAdded: data.activities.length,
+      duplicateActivitiesSkipped: 0,
+      updatedActivities: 0
     };
   }
 
-  // mode === 'merge' (Keep old & merge)
+  // mode === 'merge' (Smart Merge)
   const existingProfiles = getProfiles();
   const existingProfileMap = new Map(existingProfiles.map(p => [p.id, p]));
+  const existingNameMap = new Map(existingProfiles.map(p => [p.name.trim().toLowerCase(), p]));
+
+  const idMap = new Map();
+  let newProfilesAdded = 0;
+  let matchedProfilesCount = 0;
 
   for (const importedProfile of data.profiles) {
-    if (!existingProfileMap.has(importedProfile.id)) {
-      // Check if a profile with exact same name already exists to map IDs
-      const duplicateName = existingProfiles.find(p => p.name.trim().toLowerCase() === importedProfile.name.trim().toLowerCase());
-      if (duplicateName) {
-        for (const a of data.activities) {
-          if (a.babyId === importedProfile.id) {
-            a.babyId = duplicateName.id;
-          }
-        }
-      } else {
-        existingProfiles.push(importedProfile);
-      }
+    if (existingProfileMap.has(importedProfile.id)) {
+      const match = existingProfileMap.get(importedProfile.id);
+      idMap.set(importedProfile.id, match.id);
+      matchedProfilesCount++;
+    } else if (existingNameMap.has(importedProfile.name.trim().toLowerCase())) {
+      const match = existingNameMap.get(importedProfile.name.trim().toLowerCase());
+      idMap.set(importedProfile.id, match.id);
+      matchedProfilesCount++;
+    } else {
+      existingProfiles.push(importedProfile);
+      existingProfileMap.set(importedProfile.id, importedProfile);
+      existingNameMap.set(importedProfile.name.trim().toLowerCase(), importedProfile);
+      idMap.set(importedProfile.id, importedProfile.id);
+      newProfilesAdded++;
     }
   }
+
   saveProfiles(existingProfiles);
 
   // If no active baby is set, set the first profile
@@ -450,13 +523,61 @@ export async function importDataWithMode(data, mode = 'merge') {
     saveSettings(settings);
   }
 
-  // Merge activities into IndexedDB (put overwrites matches by key 'id', and adds new ones)
-  await importActivities(data.activities);
+  // Smart deduplication of activities
+  const existingActivities = await getAllActivities();
+  const existingIdMap = new Map(existingActivities.map(a => [a.id, a]));
+  const existingFingerprintMap = new Map(
+    existingActivities.map(a => [`${a.babyId}_${a.eventType}_${a.date}_${(a.startTime || '').substring(0, 16)}`, a])
+  );
+
+  const activitiesToSave = [];
+  let newActivitiesAdded = 0;
+  let duplicateActivitiesSkipped = 0;
+  let updatedActivities = 0;
+
+  for (const rawAct of data.activities) {
+    const act = {
+      ...rawAct,
+      babyId: idMap.get(rawAct.babyId) || rawAct.babyId
+    };
+
+    const fp = `${act.babyId}_${act.eventType}_${act.date}_${(act.startTime || '').substring(0, 16)}`;
+
+    if (existingIdMap.has(act.id)) {
+      const existing = existingIdMap.get(act.id);
+      const existingUpdated = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+      const importedUpdated = new Date(act.updatedAt || act.createdAt || 0).getTime();
+      if (importedUpdated > existingUpdated) {
+        activitiesToSave.push(act);
+        updatedActivities++;
+      } else {
+        duplicateActivitiesSkipped++;
+      }
+    } else if (existingFingerprintMap.has(fp)) {
+      // Same baby, event type, date and start time exists
+      duplicateActivitiesSkipped++;
+    } else {
+      // New activity entry
+      activitiesToSave.push(act);
+      newActivitiesAdded++;
+      // Register to prevent duplicate entries inside the same file
+      existingFingerprintMap.set(fp, act);
+    }
+  }
+
+  if (activitiesToSave.length > 0) {
+    await importActivities(activitiesToSave);
+  }
 
   return {
     mode: 'merge',
     profilesCount: data.profiles.length,
     activitiesCount: data.activities.length,
+    newActivitiesAdded,
+    duplicateActivitiesSkipped,
+    updatedActivities,
+    newProfilesAdded,
+    matchedProfilesCount,
     totalProfiles: existingProfiles.length
   };
 }
