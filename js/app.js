@@ -1015,6 +1015,9 @@ function renderSidebar() {
       <span class="sidebar__item-icon">⚙️</span> Settings
     </button>
     <div class="sidebar__divider"></div>
+    <button class="sidebar__item" id="nav-share-whatsapp" style="color: #25D366; font-weight: 600;">
+      <span class="sidebar__item-icon">💬</span> Share on WhatsApp
+    </button>
     <button class="sidebar__item" id="nav-export">
       <span class="sidebar__item-icon">📤</span> Export Data
     </button>
@@ -1037,6 +1040,32 @@ function renderSidebar() {
   document.getElementById('nav-summary')?.addEventListener('click', () => { closeSidebar(); renderSummary(); });
   document.getElementById('nav-manage-babies')?.addEventListener('click', () => { closeSidebar(); renderManageBabies(); });
   document.getElementById('nav-settings')?.addEventListener('click', () => { closeSidebar(); renderSettings(); });
+  document.getElementById('nav-share-whatsapp')?.addEventListener('click', async () => {
+    closeSidebar();
+    const profiles = getProfiles();
+    const settings = getSettings();
+    const activeBaby = profiles.find(p => p.id === settings.activeBabyId);
+
+    if (!activeBaby) {
+      openExportModal();
+      return;
+    }
+
+    try {
+      const bounds = {
+        babyId: activeBaby.id,
+        babyName: activeBaby.name,
+        dateRangeLabel: 'all-time'
+      };
+      const res = await shareBackup(bounds);
+      if (res && res.shared) {
+        trackDataExport('share_whatsapp_menu', 'all-time');
+        showToast(`Shared ${activeBaby.name}'s data via WhatsApp ✓`);
+      }
+    } catch (err) {
+      openExportModal();
+    }
+  });
   document.getElementById('nav-export')?.addEventListener('click', () => {
     closeSidebar();
     openExportModal();
