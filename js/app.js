@@ -1552,7 +1552,7 @@ function openCollabModal(initialTab = 'auto') {
     activeTab = currentSyncId ? 'connected' : 'start';
   }
 
-  async function renderModalContent() {
+  function renderModalContent() {
     const hasSyncId = !!driveSync.getSyncId();
     const isAuth = !!(driveSync.accessToken && driveSync.tokenExpiresAt > Date.now());
     const inviteLink = driveSync.getInviteLink();
@@ -1561,8 +1561,6 @@ function openCollabModal(initialTab = 'auto') {
     const profiles = getProfiles();
     const settings = getSettings();
     const activeBaby = profiles.find(p => p.id === settings.activeBabyId) || profiles[0];
-    const allActivities = await getAllActivities();
-    const babyActivities = activeBaby ? allActivities.filter(a => a.babyId === activeBaby.id) : allActivities;
 
     let statusBadgeHtml = '';
     if (driveSync.status === 'syncing') {
@@ -1613,8 +1611,8 @@ function openCollabModal(initialTab = 'auto') {
             </p>
 
             <div class="collab-tip-box" style="margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
-              👶 <strong>Active Baby:</strong> ${activeBaby ? activeBaby.name : 'None'}<br>
-              📊 <strong>Synced State:</strong> ${profiles.length} baby profile(s) · ${babyActivities.length} logs for ${activeBaby?.name || 'baby'} (${allActivities.length} total)
+              👶 <strong>Active Baby:</strong> ${activeBaby ? activeBaby.name : 'None selected'}<br>
+              📊 <strong>Synced Profiles:</strong> ${profiles.length} baby profile(s)
             </div>
 
             <div class="form-group" style="margin-bottom: 0;">
@@ -1779,7 +1777,7 @@ function openCollabModal(initialTab = 'auto') {
       } catch (err) {
         showToast(`Sync failed: ${err.message}`);
       } finally {
-        await renderModalContent();
+        renderModalContent();
       }
     });
 
