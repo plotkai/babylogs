@@ -632,18 +632,38 @@ function openActivityModal(activity = null, presetType = '') {
       <label class="form-group__label">Event Type</label>
       <input type="hidden" id="modal-event-type" value="${selectedType}">
       
-      <!-- 4 Category inline tab buttons -->
+      <!-- 4 Category inline buttons -->
       <div class="event-category-tabs" id="event-category-tabs">
         ${Object.entries(categories).map(([catKey, cat]) => `
           <button type="button" class="event-category-tab ${catKey === selectedCategory ? 'active' : ''}" data-category="${catKey}">
             <span class="event-category-tab__icon">${cat.icon}</span>
-            <span class="event-category-tab__label">${cat.label}</span>
+            <span class="event-category-tab__label">
+              ${cat.label} <span class="event-category-tab__arrow">▾</span>
+            </span>
           </button>
         `).join('')}
       </div>
 
-      <!-- Specific event option pills for active category -->
-      <div class="event-options-grid" id="event-options-grid"></div>
+      <!-- Selected Event Card Trigger -->
+      <div class="selected-event-display" id="selected-event-display">
+        <div class="selected-event-info">
+          <span class="selected-event-emoji" id="selected-event-emoji"></span>
+          <div>
+            <div class="selected-event-name" id="selected-event-name"></div>
+            <div style="font-size: 11px; color: var(--color-text-secondary);" id="selected-event-category"></div>
+          </div>
+        </div>
+        <span class="selected-event-badge" id="selected-event-badge">Select ▾</span>
+      </div>
+
+      <!-- Dropdown Selector Menu -->
+      <div class="event-dropdown-menu hidden" id="event-dropdown-menu">
+        <div class="event-dropdown-header">
+          <span id="dropdown-category-title">Options</span>
+          <span style="font-size: 11px; cursor: pointer; color: var(--color-text-muted);" id="btn-close-dropdown">✕ Close</span>
+        </div>
+        <div id="event-dropdown-items"></div>
+      </div>
     </div>
 
     <!-- Duration Slider & Controls -->
@@ -683,6 +703,83 @@ function openActivityModal(activity = null, presetType = '') {
   // Show modal
   overlay.classList.add('active');
 
+  let activeDropdownCategory = null;
+
+  function updateSelectedEventCard(typeKey) {
+    const typeConfig = getActivityType(typeKey);
+    if (!typeConfig) return;
+    
+    document.getElementById('selected-event-emoji').textContent = typeConfig.emoji || '📝';
+    document.getElementById('selected-event-name').textContent = typeConfig.label;
+    document.getElementById('selected-event-category').textContent = `${typeConfig.categoryIcon || ''} ${typeConfig.categoryLabel || ''} Category`;
+    
+    // Update active category tab
+    selectedCategory = typeConfig.category || 'feeding';
+    document.querySelectorAll('.event-category-tab').forEach(t => {
+      t.classList.toggle('active', t.dataset.category === selectedCategory);
+    });
+  }
+
+  function openCategoryDropdown(catKey) {
+    const dropdown = document.getElementById('event-dropdown-menu');
+    const itemsContainer = document.getElementById('event-dropdown-items');
+    const headerTitle = document.getElementById('dropdown-category-title');
+    if (!dropdown || !itemsContainer || !categories[catKey]) return;
+
+    activeDropdownCategory = catKey;
+    headerTitle.textContent = `${categories[catKey].icon} ${categories[catKey].label} Activities`;
+
+    // Mark tab open
+    document.querySelectorAll('.event-category-tab').forEach(t => {
+      t.classList.toggle('open', t.dataset.category === catKey);
+    });
+
+    const types = categories[catKey].types || {};
+    itemsContainer.innerHTML = Object.entries(types).map(([typeKey, type]) => {
+      const isSelected = typeKey === selectedType;
+      const defDur = getActivityDefaultDuration(typeKey, settings);
+      return `
+        <div class="event-dropdown-item ${isSelected ? 'selected' : ''}" data-type="${typeKey}">
+          <div class="event-dropdown-item__main">
+            <span class="event-dropdown-item__emoji">${type.emoji || '📝'}</span>
+            <span class="event-dropdown-item__label">${type.label}</span>
+          </div>
+          <div class="event-dropdown-item__meta">
+            <span style="font-size: 11px;">⏱ ${defDur}m</span>
+            ${isSelected ? '<span class="event-dropdown-item__check">✓</span>' : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    dropdown.classList.remove('hidden');
+
+    // Bind dropdown item clicks
+    itemsContainer.querySelectorAll('.event-dropdown-item').forEach(item => {
+      item.addEventListener('click', () => {
+        const typeKey = item.dataset.type;
+        selectedType = typeKey;
+        document.getElementById('modal-event-type').value = typeKey;
+        updateSelectedEventCard(typeKey);
+        closeCategoryDropdown();
+
+        renderDynamicFields(typeKey);
+
+        if (!activity) {
+          const defDur = getActivityDefaultDuration(typeKey, getSettings());
+          updateDurationDisplay(defDur);
+        }
+      });
+    });
+  }
+
+  function closeCategoryDropdown() {
+    activeDropdownCategory = null;
+    const dropdown = document.getElementById('event-dropdown-menu');
+    if (dropdown) dropdown.classList.add('hidden');
+    document.querySelectorAll('.event-category-tab').forEach(t => t.classList.remove('open'));
+  }
+
   // Helper to update duration & end time
   function updateDurationDisplay(mins) {
     const clampedMins = Math.max(0, parseInt(mins) || 0);
@@ -714,68 +811,32 @@ function openActivityModal(activity = null, presetType = '') {
     }
   }
 
-  // Helper to render event pills for a category
-  function renderCategoryEventPills(catKey) {
-    const pillsContainer = document.getElementById('event-options-grid');
-    if (!pillsContainer || !categories[catKey]) return;
-
-    const types = categories[catKey].types || {};
-    pillsContainer.innerHTML = Object.entries(types).map(([typeKey, type]) => `
-      <button type="button" class="event-option-pill ${typeKey === selectedType ? 'selected' : ''}" data-type="${typeKey}">
-        <span class="event-option-pill__emoji">${type.emoji || '📝'}</span>
-        <span>${type.label}</span>
-      </button>
-    `).join('');
-
-    // Bind event pill clicks
-    pillsContainer.querySelectorAll('.event-option-pill').forEach(pill => {
-      pill.addEventListener('click', () => {
-        const typeKey = pill.dataset.type;
-        selectedType = typeKey;
-        document.getElementById('modal-event-type').value = typeKey;
-        
-        pillsContainer.querySelectorAll('.event-option-pill').forEach(p => p.classList.remove('selected'));
-        pill.classList.add('selected');
-
-        renderDynamicFields(typeKey);
-
-        if (!activity) {
-          const defDur = getActivityDefaultDuration(typeKey, getSettings());
-          updateDurationDisplay(defDur);
-        }
-      });
-    });
-  }
-
   // Category tab clicks
   document.querySelectorAll('.event-category-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       const catKey = tab.dataset.category;
-      selectedCategory = catKey;
-
-      document.querySelectorAll('.event-category-tab').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-
-      const types = categories[catKey]?.types || {};
-      const typeKeys = Object.keys(types);
-
-      if (!types[selectedType] && typeKeys.length > 0) {
-        selectedType = typeKeys[0];
-        document.getElementById('modal-event-type').value = selectedType;
-        renderDynamicFields(selectedType);
-
-        if (!activity) {
-          const defDur = getActivityDefaultDuration(selectedType, getSettings());
-          updateDurationDisplay(defDur);
-        }
+      if (activeDropdownCategory === catKey) {
+        closeCategoryDropdown();
+      } else {
+        openCategoryDropdown(catKey);
       }
-
-      renderCategoryEventPills(catKey);
     });
   });
 
-  // Initial render of category pills and dynamic fields
-  renderCategoryEventPills(selectedCategory);
+  // Selected event display card click
+  document.getElementById('selected-event-display')?.addEventListener('click', () => {
+    if (activeDropdownCategory === selectedCategory) {
+      closeCategoryDropdown();
+    } else {
+      openCategoryDropdown(selectedCategory);
+    }
+  });
+
+  // Close dropdown button
+  document.getElementById('btn-close-dropdown')?.addEventListener('click', closeCategoryDropdown);
+
+  // Initial setup
+  updateSelectedEventCard(selectedType);
   if (selectedType) {
     renderDynamicFields(selectedType, activity?.subFields);
   }
