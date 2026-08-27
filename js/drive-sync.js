@@ -352,7 +352,7 @@ class DriveSyncManager {
    * Set Google Drive file permissions to anyone with link as writer
    */
   async setFilePermissions(fileId, token) {
-    const permRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions`, {
+    const permRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}/permissions?supportsAllDrives=true`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -360,12 +360,15 @@ class DriveSyncManager {
       },
       body: JSON.stringify({
         role: 'writer',
-        type: 'anyone'
+        type: 'anyone',
+        allowFileDiscovery: false
       })
     });
 
     if (!permRes.ok) {
-      console.warn('Could not set public writer permission automatically:', await permRes.text());
+      const errText = await permRes.text();
+      console.warn('Could not set public writer permission automatically:', errText);
+      // If error is related to domain policy, we log but continue
     }
   }
 
@@ -373,13 +376,13 @@ class DriveSyncManager {
    * Read raw JSON state from Google Drive file
    */
   async readStoreFile(fileId, token) {
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`, {
       headers: { Authorization: `Bearer ${token}` }
     });
 
     if (!res.ok) {
       if (res.status === 404) {
-        throw new Error('Cloud sync file not found. The file ID may be invalid or deleted.');
+        throw new Error('Cloud sync file not found or not accessible. Make sure the file was shared and your Google account has permission.');
       }
       if (res.status === 403) {
         throw new Error('Access denied to cloud sync file. Please check file permissions or sign in with the correct account.');
@@ -399,7 +402,7 @@ class DriveSyncManager {
    * Overwrite JSON state in Google Drive file
    */
   async writeStoreFile(fileId, data, token) {
-    const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`, {
+    const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media&supportsAllDrives=true`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${token}`,
