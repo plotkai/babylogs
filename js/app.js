@@ -1552,12 +1552,17 @@ function openCollabModal(initialTab = 'auto') {
     activeTab = currentSyncId ? 'connected' : 'start';
   }
 
-  function renderModalContent() {
+  async function renderModalContent() {
     const hasSyncId = !!driveSync.getSyncId();
     const isAuth = !!(driveSync.accessToken && driveSync.tokenExpiresAt > Date.now());
     const inviteLink = driveSync.getInviteLink();
     const qrSvg = inviteLink ? generateQRCodeSVG(inviteLink, { size: 170 }) : '';
     const lastSyncTime = driveSync.getLastSyncTime();
+    const profiles = getProfiles();
+    const settings = getSettings();
+    const activeBaby = profiles.find(p => p.id === settings.activeBabyId) || profiles[0];
+    const allActivities = await getAllActivities();
+    const babyActivities = activeBaby ? allActivities.filter(a => a.babyId === activeBaby.id) : allActivities;
 
     let statusBadgeHtml = '';
     if (driveSync.status === 'syncing') {
@@ -1606,6 +1611,11 @@ function openCollabModal(initialTab = 'auto') {
             <p class="collab-card__desc">
               All logs (feeds, diapers, sleep) sync automatically between you and your partner with offline support.
             </p>
+
+            <div class="collab-tip-box" style="margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
+              👶 <strong>Active Baby:</strong> ${activeBaby ? activeBaby.name : 'None'}<br>
+              📊 <strong>Synced State:</strong> ${profiles.length} baby profile(s) · ${babyActivities.length} logs for ${activeBaby?.name || 'baby'} (${allActivities.length} total)
+            </div>
 
             <div class="form-group" style="margin-bottom: 0;">
               <label class="form-group__label" style="font-size: 11px;">Invite Link (Share with Partner)</label>
@@ -1751,14 +1761,25 @@ function openCollabModal(initialTab = 'auto') {
       try {
         const res = await driveSync.sync(true);
         if (res.success) {
-          showToast('Google Drive synced successfully! ✓');
+          const profiles = getProfiles();
+          if (profiles.length > 0 && !getSettings().activeBabyId) {
+            updateSetting('activeBabyId', profiles[0].id);
+          }
+          if (res.stats) {
+            showToast(`Synced ✓ (+${res.stats.newFromRemote || 0} from cloud, ${res.stats.totalActivities || 0} total)`);
+          } else {
+            showToast('Google Drive synced successfully! ✓');
+          }
+          if (currentView === 'welcome' || currentView === 'main') {
+            renderMain();
+          }
         } else {
           showToast(`Sync failed: ${driveSync.lastError || 'Unknown error'}`);
         }
       } catch (err) {
         showToast(`Sync failed: ${err.message}`);
       } finally {
-        renderModalContent();
+        await renderModalContent();
       }
     });
 
