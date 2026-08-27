@@ -94,6 +94,14 @@ class DriveSyncManager {
   }
 
   /**
+   * Check if configured Google Client ID is valid
+   */
+  hasValidClientId() {
+    const id = this.getClientId();
+    return !!(id && id.trim().length > 15 && !id.includes('example.apps.googleusercontent.com') && id.endsWith('.apps.googleusercontent.com'));
+  }
+
+  /**
    * Check if Google Identity Services library is loaded
    */
   isGisLoaded() {
@@ -106,10 +114,11 @@ class DriveSyncManager {
   async ensureTokenClient() {
     if (this.tokenClient) return this.tokenClient;
 
-    const clientId = this.getClientId();
-    if (!clientId) {
-      throw new Error('Google OAuth Client ID is not configured.');
+    if (!this.hasValidClientId()) {
+      throw new Error('Please configure a valid Google OAuth Client ID first.');
     }
+
+    const clientId = this.getClientId();
 
     // Wait for GIS script if still loading
     if (!this.isGisLoaded()) {

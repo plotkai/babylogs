@@ -1606,6 +1606,8 @@ function openCollabModal(initialTab = 'auto') {
       else timeAgoText = lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
+    const hasValidClientId = driveSync.hasValidClientId();
+
     body.innerHTML = `
       <div class="collab-modal">
         <!-- Account / Cloud Status Banner -->
@@ -1621,6 +1623,31 @@ function openCollabModal(initialTab = 'auto') {
           </div>
           ${statusBadgeHtml}
         </div>
+
+        ${!hasValidClientId ? `
+          <!-- OAUTH CLIENT ID SETUP PROMPT -->
+          <div class="collab-card" id="collab-client-id-card" style="border: 1.5px solid var(--color-accent); background: rgba(255, 128, 0, 0.04);">
+            <div class="collab-card__title" style="color: var(--color-accent);">
+              <span>🔑 Google OAuth Client ID Required</span>
+            </div>
+            <p class="collab-card__desc">
+              To connect your Google account with zero backend servers, enter your Google Cloud OAuth Client ID below:
+            </p>
+            <div class="form-group" style="margin-bottom: 0;">
+              <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com" value="${driveSync.getClientId()}">
+            </div>
+            <button class="btn btn--primary btn--sm" id="btn-save-custom-client-id" style="width: 100%;">
+              💾 Save Client ID & Activate Sync
+            </button>
+            <div class="collab-tip-box" style="font-size: 11px; margin-top: 4px;">
+              <strong>Quick 2-minute setup:</strong><br>
+              1. Open <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color: var(--color-primary); font-weight: 600; text-decoration: underline;">Google Cloud Console Credentials</a>.<br>
+              2. Click <strong>Create Credentials > OAuth client ID</strong> (Web application).<br>
+              3. Under Authorized JavaScript origins, add <code>https://babylogs.plotkai.in</code> (and <code>http://localhost:5500</code> for local test).<br>
+              4. Copy the Client ID ending with <code>.apps.googleusercontent.com</code> and paste it above.
+            </div>
+          </div>
+        ` : ''}
 
         ${hasSyncId ? `
           <!-- ACTIVE COLLABORATION VIEW (FOR BOTH CREATOR & JOINER) -->
@@ -1705,14 +1732,16 @@ function openCollabModal(initialTab = 'auto') {
           `}
         `}
 
-        <!-- Optional Client ID Override Details -->
-        <details style="margin-top: 6px; font-size: 12px; color: var(--color-text-muted);">
-          <summary style="cursor: pointer; font-weight: 500;">⚙️ Advanced OAuth Client ID</summary>
-          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-            <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="Google OAuth Client ID" value="${driveSync.getClientId()}">
-            <button class="btn btn--secondary btn--sm" id="btn-save-custom-client-id">Save Client ID</button>
-          </div>
-        </details>
+        ${hasValidClientId ? `
+          <!-- Collapsible Client ID Override Details when valid -->
+          <details style="margin-top: 6px; font-size: 12px; color: var(--color-text-muted);">
+            <summary style="cursor: pointer; font-weight: 500;">⚙️ Change OAuth Client ID</summary>
+            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+              <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="Google OAuth Client ID" value="${driveSync.getClientId()}">
+              <button class="btn btn--secondary btn--sm" id="btn-save-custom-client-id">Update Client ID</button>
+            </div>
+          </details>
+        ` : ''}
       </div>
     `;
 
@@ -1811,6 +1840,18 @@ function openCollabModal(initialTab = 'auto') {
 
     // Creator Flow: Create Cloud File
     document.getElementById('btn-collab-create-drive')?.addEventListener('click', async () => {
+      // Check if user entered a client ID in the input
+      const customIdInput = document.getElementById('collab-custom-client-id');
+      if (customIdInput && customIdInput.value.trim().length > 10) {
+        driveSync.setCustomClientId(customIdInput.value.trim());
+      }
+
+      if (!driveSync.hasValidClientId()) {
+        showToast('Please enter your Google OAuth Client ID first');
+        customIdInput?.focus();
+        return;
+      }
+
       const btn = document.getElementById('btn-collab-create-drive');
       if (btn) {
         btn.innerHTML = '<span>Creating Cloud File...</span>';
@@ -1832,6 +1873,18 @@ function openCollabModal(initialTab = 'auto') {
 
     // Joiner Flow: Join Existing File
     document.getElementById('btn-collab-join-submit')?.addEventListener('click', async () => {
+      // Check if user entered a client ID in the input
+      const customIdInput = document.getElementById('collab-custom-client-id');
+      if (customIdInput && customIdInput.value.trim().length > 10) {
+        driveSync.setCustomClientId(customIdInput.value.trim());
+      }
+
+      if (!driveSync.hasValidClientId()) {
+        showToast('Please enter your Google OAuth Client ID first');
+        customIdInput?.focus();
+        return;
+      }
+
       const input = document.getElementById('collab-join-input');
       const btn = document.getElementById('btn-collab-join-submit');
       let rawVal = input?.value?.trim() || '';
@@ -1884,8 +1937,17 @@ function openCollabModal(initialTab = 'auto') {
     document.getElementById('btn-save-custom-client-id')?.addEventListener('click', () => {
       const customIdInput = document.getElementById('collab-custom-client-id');
       const val = customIdInput?.value?.trim() || '';
+      if (!val) {
+        showToast('Please paste a Google OAuth Client ID');
+        return;
+      }
+      if (!val.endsWith('.apps.googleusercontent.com')) {
+        showToast('Client ID should end with .apps.googleusercontent.com');
+        return;
+      }
       driveSync.setCustomClientId(val);
-      showToast('Client ID saved ✓');
+      showToast('Google Client ID saved! ✓');
+      renderModalContent();
     });
   }
 

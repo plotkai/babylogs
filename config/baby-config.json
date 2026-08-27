@@ -327,7 +327,7 @@
     "description": "Track your baby's feeds, diapers, sleep and more"
   },
   "googleDriveSync": {
-    "clientId": "366078029919-example.apps.googleusercontent.com",
+    "clientId": "",
     "scopes": "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email",
     "fileName": "babylogs_store.json",
     "autoSyncIntervalMinutes": 5,

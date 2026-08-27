@@ -214,7 +214,7 @@ function getDefaultConfig() {
     adBanner: { enabled: true, height: '60px', adSlotId: '', adClient: '', placeholder: 'Ad Space' },
     app: { title: 'Babylogs by Plotkai', version: '1.0.0' },
     googleDriveSync: {
-      clientId: '366078029919-example.apps.googleusercontent.com',
+      clientId: '',
       scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       fileName: 'babylogs_store.json',
       autoSyncIntervalMinutes: 5,
