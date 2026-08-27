@@ -625,13 +625,11 @@ async function loadTimeline() {
 
       return `
         <div class="activity-card__time-track" title="${startTimeStr} – ${endTimeStr} (${durationStr})">
-          <div class="activity-card__time-slot activity-card__time-slot--top">${topTime}</div>
-          <div class="activity-card__time-connector">
-            <span class="activity-card__time-dots"></span>
-            <span class="activity-card__duration-badge">${durationStr}</span>
-            <span class="activity-card__time-dots"></span>
-          </div>
-          <div class="activity-card__time-slot activity-card__time-slot--bottom">${bottomTime}</div>
+          <span class="activity-card__time-slot">${topTime}</span>
+          <span class="activity-card__time-dots"></span>
+          <span class="activity-card__duration-text">${durationStr}</span>
+          <span class="activity-card__time-dots"></span>
+          <span class="activity-card__time-slot">${bottomTime}</span>
         </div>
       `;
     }
