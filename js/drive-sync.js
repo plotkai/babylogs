@@ -154,8 +154,8 @@ class DriveSyncManager {
    * @param {boolean} promptExplicit - If true, displays the Google consent account chooser
    */
   async requestAccessToken(promptExplicit = false) {
-    // Return cached token if still valid for at least 60 seconds
-    if (this.accessToken && this.tokenExpiresAt > Date.now() + 60000) {
+    // Return cached token if still valid and explicit prompt is not requested
+    if (!promptExplicit && this.accessToken && this.tokenExpiresAt > Date.now() + 60000) {
       return this.accessToken;
     }
 
@@ -372,6 +372,20 @@ class DriveSyncManager {
     }
   }
 
+  async parseApiError(res) {
+    try {
+      const text = await res.text();
+      try {
+        const json = JSON.parse(text);
+        return json?.error?.message || text;
+      } catch (e) {
+        return text || `HTTP ${res.status}`;
+      }
+    } catch (e) {
+      return `HTTP ${res.status}`;
+    }
+  }
+
   /**
    * Read raw JSON state from Google Drive file
    */
@@ -381,13 +395,19 @@ class DriveSyncManager {
     });
 
     if (!res.ok) {
+      const errMsg = await this.parseApiError(res);
+      if (res.status === 401) {
+        const err = new Error('Google authentication expired. Please sign in again.');
+        err.status = 401;
+        throw err;
+      }
       if (res.status === 404) {
-        throw new Error('Cloud sync file not found or not accessible. Make sure the file was shared and your Google account has permission.');
+        throw new Error('Cloud sync file not found. The file ID may be invalid or deleted.');
       }
       if (res.status === 403) {
-        throw new Error('Access denied to cloud sync file. Please check file permissions or sign in with the correct account.');
+        throw new Error(`Access denied to cloud file: ${errMsg}`);
       }
-      throw new Error(`Failed to read cloud file (${res.status}): ${await res.text()}`);
+      throw new Error(`Failed to read cloud file (${res.status}): ${errMsg}`);
     }
 
     const text = await res.text();
@@ -412,7 +432,13 @@ class DriveSyncManager {
     });
 
     if (!res.ok) {
-      throw new Error(`Failed to update cloud file (${res.status}): ${await res.text()}`);
+      const errMsg = await this.parseApiError(res);
+      if (res.status === 401) {
+        const err = new Error('Google authentication expired. Please sign in again.');
+        err.status = 401;
+        throw err;
+      }
+      throw new Error(`Failed to update cloud file (${res.status}): ${errMsg}`);
     }
 
     return await res.json();
@@ -618,16 +644,41 @@ class DriveSyncManager {
 
     try {
       // 1. Get access token
-      const token = await this.requestAccessToken(promptExplicitAuth);
+      let token = await this.requestAccessToken(promptExplicitAuth);
+      let remoteState;
 
-      // 2. Read remote state from Google Drive
-      const remoteState = await this.readStoreFile(fileId, token);
+      // 2. Read remote state from Google Drive (with auto-retry on 401)
+      try {
+        remoteState = await this.readStoreFile(fileId, token);
+      } catch (readErr) {
+        if (readErr.status === 401) {
+          this.accessToken = null;
+          this.tokenExpiresAt = 0;
+          localStorage.removeItem(STORAGE_AUTH_TOKEN);
+          token = await this.requestAccessToken(true);
+          remoteState = await this.readStoreFile(fileId, token);
+        } else {
+          throw readErr;
+        }
+      }
 
       // 3. Perform 2-way merge
       const { mergedCloudPayload, stats } = await this.mergeStates(remoteState);
 
-      // 4. Upload merged state back to Google Drive
-      await this.writeStoreFile(fileId, mergedCloudPayload, token);
+      // 4. Upload merged state back to Google Drive (with auto-retry on 401)
+      try {
+        await this.writeStoreFile(fileId, mergedCloudPayload, token);
+      } catch (writeErr) {
+        if (writeErr.status === 401) {
+          this.accessToken = null;
+          this.tokenExpiresAt = 0;
+          localStorage.removeItem(STORAGE_AUTH_TOKEN);
+          token = await this.requestAccessToken(true);
+          await this.writeStoreFile(fileId, mergedCloudPayload, token);
+        } else {
+          throw writeErr;
+        }
+      }
 
       // 5. Update local metadata
       this.syncStats = stats;
