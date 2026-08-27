@@ -521,8 +521,104 @@ async function loadTimeline() {
   }
 
   const allTypes = getAllActivityTypes();
+  const gapThreshold = Number(settings.timelineGapThreshold !== undefined ? settings.timelineGapThreshold : 15);
 
-  timeline.innerHTML = displayActivities.map((activity, i) => {
+  // Chronological sort for calculating gaps
+  const chronological = [...displayActivities].sort((a, b) => {
+    return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
+  });
+
+  const timelineItems = [];
+
+  if (gapThreshold > 0 && !currentEventFilter) {
+    for (let i = 0; i < chronological.length; i++) {
+      const act = chronological[i];
+      timelineItems.push({ type: 'activity', data: act });
+
+      if (i < chronological.length - 1) {
+        const nextAct = chronological[i + 1];
+        const actEndTime = act.endTime 
+          ? new Date(act.endTime).getTime() 
+          : (act.duration > 0 
+              ? calculateEndTime(act.startTime, act.duration).getTime() 
+              : new Date(act.startTime).getTime());
+        const nextStartTime = new Date(nextAct.startTime).getTime();
+
+        const gapMs = nextStartTime - actEndTime;
+        const gapMinutes = Math.floor(gapMs / (60 * 1000));
+
+        if (gapMinutes >= gapThreshold) {
+          timelineItems.push({
+            type: 'gap',
+            start: new Date(actEndTime),
+            end: new Date(nextStartTime),
+            duration: gapMinutes
+          });
+        }
+      }
+    }
+  } else {
+    chronological.forEach(act => {
+      timelineItems.push({ type: 'activity', data: act });
+    });
+  }
+
+  // Reverse if descending
+  if (sortOrder === 'desc') {
+    timelineItems.reverse();
+  }
+
+  function formatActivityTags(activity) {
+    if (!activity.subFields) return '';
+    const tags = [];
+    for (const [k, v] of Object.entries(activity.subFields)) {
+      if (v === true) {
+        tags.push(k === 'diaperChange' ? 'Diaper Changed' : k);
+      } else if (typeof v === 'string' && v.trim()) {
+        tags.push(v);
+      } else if (typeof v === 'number') {
+        tags.push(`${v}`);
+      } else if (Array.isArray(v) && v.length > 0) {
+        tags.push(...v);
+      }
+    }
+    if (tags.length === 0) return '';
+    return `
+      <div class="activity-card__tags">
+        ${tags.map(t => `<span class="activity-card__tag">${t}</span>`).join('')}
+      </div>
+    `;
+  }
+
+  timeline.innerHTML = timelineItems.map((item, i) => {
+    if (item.type === 'gap') {
+      const gapStartIso = `${formatDateKey(item.start)}T${String(item.start.getHours()).padStart(2, '0')}:${String(item.start.getMinutes()).padStart(2, '0')}`;
+      return `
+        <div class="timeline-gap" style="animation-delay: ${i * 0.03}s;">
+          <div class="timeline-gap__stem">
+            <div class="timeline-gap__line"></div>
+            <div class="timeline-gap__dot">⏳</div>
+            <div class="timeline-gap__line"></div>
+          </div>
+          <div class="timeline-gap__card">
+            <div class="timeline-gap__info">
+              <div class="timeline-gap__title">
+                <span class="timeline-gap__badge">Gap</span>
+                <span>${formatDuration(item.duration)} inactive</span>
+              </div>
+              <div class="timeline-gap__times">
+                ${formatTime(item.start)} – ${formatTime(item.end)}
+              </div>
+            </div>
+            <button class="timeline-gap__btn btn-log-gap" data-time="${gapStartIso}" title="Add activity during this gap">
+              ＋ Log Activity
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    const activity = item.data;
     const typeConfig = allTypes[activity.eventType] || {};
     const timeStr = activity.endTime
       ? formatTimeRange(activity.startTime, activity.endTime)
@@ -530,14 +626,19 @@ async function loadTimeline() {
     const durationStr = activity.duration ? formatDuration(activity.duration) : '';
 
     return `
-      <div class="activity-card" data-id="${activity.id}" style="border-left-color: ${typeConfig.color || '#ccc'}; animation-delay: ${i * 0.05}s;">
-        <span class="activity-card__emoji">${typeConfig.emoji || '📋'}</span>
-        <div class="activity-card__content">
-          <div class="activity-card__time">${timeStr}</div>
-          <div class="activity-card__description">${activity.displayText || typeConfig.label || activity.eventType}</div>
-          ${activity.notes ? `<div class="activity-card__notes">${activity.notes}</div>` : ''}
+      <div class="activity-card" data-id="${activity.id}" style="border-left-color: ${typeConfig.color || 'var(--color-primary)'}; animation-delay: ${i * 0.04}s;">
+        <div class="activity-card__avatar">${typeConfig.emoji || '📋'}</div>
+        <div class="activity-card__body">
+          <div class="activity-card__header">
+            <div class="activity-card__title">${activity.displayText || typeConfig.label || activity.eventType}</div>
+            ${durationStr ? `<span class="activity-card__duration-badge">${durationStr}</span>` : ''}
+          </div>
+          <div class="activity-card__time-row">
+            <span>⏰ ${timeStr}</span>
+          </div>
+          ${formatActivityTags(activity)}
+          ${activity.notes ? `<div class="activity-card__notes">💬 ${activity.notes}</div>` : ''}
         </div>
-        ${durationStr ? `<span class="activity-card__duration">${durationStr}</span>` : ''}
       </div>
     `;
   }).join('');
@@ -562,6 +663,15 @@ async function loadTimeline() {
     card.addEventListener('touchend', () => clearTimeout(pressTimer));
     card.addEventListener('touchmove', () => clearTimeout(pressTimer));
   });
+
+  // Bind gap button clicks
+  timeline.querySelectorAll('.btn-log-gap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const presetTime = btn.dataset.time;
+      openActivityModal(null, '', presetTime);
+    });
+  });
 }
 
 // ==================== FEED TIMER ====================
@@ -585,7 +695,7 @@ async function updateFeedTimer() {
 
 // ==================== ACTIVITY MODAL ====================
 
-function openActivityModal(activity = null, presetType = '') {
+function openActivityModal(activity = null, presetType = '', presetStartTime = '') {
   editingActivity = activity;
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
@@ -599,7 +709,7 @@ function openActivityModal(activity = null, presetType = '') {
   const now = new Date();
   const currentTimeStr = activity
     ? activity.startTime.slice(0, 16)
-    : `${formatDateKey(currentDate)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    : (presetStartTime || `${formatDateKey(currentDate)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
 
   let selectedType = activity ? activity.eventType : (presetType || 'breast_feed');
   
@@ -2350,6 +2460,22 @@ function renderSettings() {
             <option value="desc" ${settings.timelineSortOrder === 'desc' ? 'selected' : ''}>Newest First (Descending)</option>
           </select>
         </div>
+        <div class="settings__row">
+          <div>
+            <span class="settings__row-label">Inactive Gap Alerts</span>
+            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Show timeline gap when no activity is logged</div>
+          </div>
+          <select class="form-group__select" id="setting-timeline-gap" style="width: auto; padding: 6px 30px 6px 10px; font-size: 14px;">
+            <option value="15" ${Number(settings.timelineGapThreshold) === 15 ? 'selected' : ''}>After 15 mins</option>
+            <option value="30" ${Number(settings.timelineGapThreshold) === 30 ? 'selected' : ''}>After 30 mins</option>
+            <option value="45" ${Number(settings.timelineGapThreshold) === 45 ? 'selected' : ''}>After 45 mins</option>
+            <option value="60" ${Number(settings.timelineGapThreshold) === 60 ? 'selected' : ''}>After 1 hour</option>
+            <option value="90" ${Number(settings.timelineGapThreshold) === 90 ? 'selected' : ''}>After 1.5 hours</option>
+            <option value="120" ${Number(settings.timelineGapThreshold) === 120 ? 'selected' : ''}>After 2 hours</option>
+            <option value="180" ${Number(settings.timelineGapThreshold) === 180 ? 'selected' : ''}>After 3 hours</option>
+            <option value="0" ${Number(settings.timelineGapThreshold) === 0 ? 'selected' : ''}>Off (Hidden)</option>
+          </select>
+        </div>
       </div>
 
       <div class="settings__group">
@@ -2487,6 +2613,13 @@ function renderSettings() {
   document.getElementById('setting-timeline-sort')?.addEventListener('change', (e) => {
     updateSetting('timelineSortOrder', e.target.value);
     showToast(`Timeline: ${e.target.value === 'desc' ? 'Newest first (Descending)' : 'Oldest first (Ascending)'}`);
+  });
+
+  // Timeline Gap Threshold change
+  document.getElementById('setting-timeline-gap')?.addEventListener('change', (e) => {
+    const val = parseInt(e.target.value) || 0;
+    updateSetting('timelineGapThreshold', val);
+    showToast(val === 0 ? 'Gap alerts turned off' : `Gap alert threshold: ${val} mins ✓`);
   });
 
   // Unit changes

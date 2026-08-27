@@ -314,6 +314,7 @@ const DEFAULT_SETTINGS = {
     temperature: '°F'
   },
   timelineSortOrder: 'asc',
+  timelineGapThreshold: 15,
   defaultDurations: {},
   notificationsEnabled: false,
   feedReminderInterval: 180
