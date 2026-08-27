@@ -585,7 +585,7 @@ async function updateFeedTimer() {
 
 // ==================== ACTIVITY MODAL ====================
 
-function openActivityModal(activity = null, presetType = null) {
+function openActivityModal(activity = null, presetType = '') {
   editingActivity = activity;
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
@@ -601,7 +601,20 @@ function openActivityModal(activity = null, presetType = null) {
     ? activity.startTime.slice(0, 16)
     : `${formatDateKey(currentDate)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
 
-  const selectedType = activity ? activity.eventType : (presetType || '');
+  let selectedType = activity ? activity.eventType : (presetType || 'breast_feed');
+  
+  // Find which category contains selectedType (default to 'feeding')
+  let selectedCategory = 'feeding';
+  for (const [catKey, cat] of Object.entries(categories)) {
+    if (cat.types && cat.types[selectedType]) {
+      selectedCategory = catKey;
+      break;
+    }
+  }
+
+  const initialDuration = activity
+    ? (activity.duration ?? 0)
+    : (selectedType ? (getActivityDefaultDuration(selectedType, settings) ?? 15) : 15);
 
   body.innerHTML = `
     <div class="form-group__row">
@@ -617,21 +630,39 @@ function openActivityModal(activity = null, presetType = null) {
 
     <div class="form-group">
       <label class="form-group__label">Event Type</label>
-      <select class="form-group__select" id="modal-event-type">
-        <option value="">Select event type...</option>
+      <input type="hidden" id="modal-event-type" value="${selectedType}">
+      
+      <!-- 4 Category inline tab buttons -->
+      <div class="event-category-tabs" id="event-category-tabs">
         ${Object.entries(categories).map(([catKey, cat]) => `
-          <optgroup label="${cat.icon} ${cat.label}">
-            ${Object.entries(cat.types).map(([typeKey, type]) => `
-              <option value="${typeKey}" ${typeKey === selectedType ? 'selected' : ''}>${type.emoji || ''} ${type.label}</option>
-            `).join('')}
-          </optgroup>
+          <button type="button" class="event-category-tab ${catKey === selectedCategory ? 'active' : ''}" data-category="${catKey}">
+            <span class="event-category-tab__icon">${cat.icon}</span>
+            <span class="event-category-tab__label">${cat.label}</span>
+          </button>
         `).join('')}
-      </select>
+      </div>
+
+      <!-- Specific event option pills for active category -->
+      <div class="event-options-grid" id="event-options-grid"></div>
     </div>
 
+    <!-- Duration Slider & Controls -->
     <div class="form-group">
-      <label class="form-group__label">Duration (minutes)</label>
-      <input type="number" class="form-group__input" id="modal-duration" placeholder="e.g. 15" min="0" value="${activity ? (activity.duration ?? '') : (selectedType ? (getActivityDefaultDuration(selectedType, settings) ?? '') : '')}">
+      <div class="duration-control-card">
+        <div class="duration-control-header">
+          <label class="form-group__label" style="margin-bottom: 0;">Duration</label>
+          <span class="duration-badge" id="duration-badge">${initialDuration > 0 ? (formatDuration(initialDuration) || `${initialDuration} min`) : '0 min'}</span>
+        </div>
+        <div class="duration-slider-row">
+          <button type="button" class="duration-step-btn" id="btn-duration-minus" title="Decrease 15 min">− 15m</button>
+          <div class="duration-slider-container">
+            <input type="range" class="duration-slider" id="modal-duration-slider" min="0" max="360" step="1" value="${initialDuration}">
+            <input type="hidden" id="modal-duration" value="${initialDuration}">
+          </div>
+          <button type="button" class="duration-step-btn" id="btn-duration-plus" title="Increase 15 min">＋ 15m</button>
+        </div>
+        <div class="duration-time-subtext" id="duration-time-subtext"></div>
+      </div>
     </div>
 
     <div id="dynamic-fields"></div>
@@ -652,21 +683,127 @@ function openActivityModal(activity = null, presetType = null) {
   // Show modal
   overlay.classList.add('active');
 
-  // Render dynamic fields for pre-selected type
+  // Helper to update duration & end time
+  function updateDurationDisplay(mins) {
+    const clampedMins = Math.max(0, parseInt(mins) || 0);
+    const durationInput = document.getElementById('modal-duration');
+    const slider = document.getElementById('modal-duration-slider');
+    const badge = document.getElementById('duration-badge');
+    const subtext = document.getElementById('duration-time-subtext');
+
+    if (durationInput) durationInput.value = clampedMins;
+    if (slider) slider.value = Math.min(360, clampedMins);
+    if (badge) {
+      badge.textContent = clampedMins > 0 ? (formatDuration(clampedMins) || `${clampedMins} min`) : '0 min (Instant)';
+    }
+
+    if (subtext) {
+      const dateVal = document.getElementById('modal-date')?.value || formatDateKey(new Date());
+      const timeVal = document.getElementById('modal-time')?.value || '00:00';
+      const startIso = `${dateVal}T${timeVal}`;
+      const startDate = new Date(startIso);
+      const startFormatted = !isNaN(startDate.getTime()) ? formatTime(startDate) : timeVal;
+
+      if (clampedMins > 0 && !isNaN(startDate.getTime())) {
+        const endDate = calculateEndTime(startIso, clampedMins);
+        const endFormatted = formatTime(endDate);
+        subtext.innerHTML = `<span>Starts <strong>${startFormatted}</strong></span> <span>→</span> <span>Ends <strong>${endFormatted}</strong> (${formatDuration(clampedMins)})</span>`;
+      } else {
+        subtext.innerHTML = `<span>Time <strong>${startFormatted}</strong></span> <span>•</span> <span><em>Point in time log</em></span>`;
+      }
+    }
+  }
+
+  // Helper to render event pills for a category
+  function renderCategoryEventPills(catKey) {
+    const pillsContainer = document.getElementById('event-options-grid');
+    if (!pillsContainer || !categories[catKey]) return;
+
+    const types = categories[catKey].types || {};
+    pillsContainer.innerHTML = Object.entries(types).map(([typeKey, type]) => `
+      <button type="button" class="event-option-pill ${typeKey === selectedType ? 'selected' : ''}" data-type="${typeKey}">
+        <span class="event-option-pill__emoji">${type.emoji || '📝'}</span>
+        <span>${type.label}</span>
+      </button>
+    `).join('');
+
+    // Bind event pill clicks
+    pillsContainer.querySelectorAll('.event-option-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        const typeKey = pill.dataset.type;
+        selectedType = typeKey;
+        document.getElementById('modal-event-type').value = typeKey;
+        
+        pillsContainer.querySelectorAll('.event-option-pill').forEach(p => p.classList.remove('selected'));
+        pill.classList.add('selected');
+
+        renderDynamicFields(typeKey);
+
+        if (!activity) {
+          const defDur = getActivityDefaultDuration(typeKey, getSettings());
+          updateDurationDisplay(defDur);
+        }
+      });
+    });
+  }
+
+  // Category tab clicks
+  document.querySelectorAll('.event-category-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const catKey = tab.dataset.category;
+      selectedCategory = catKey;
+
+      document.querySelectorAll('.event-category-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+
+      const types = categories[catKey]?.types || {};
+      const typeKeys = Object.keys(types);
+
+      if (!types[selectedType] && typeKeys.length > 0) {
+        selectedType = typeKeys[0];
+        document.getElementById('modal-event-type').value = selectedType;
+        renderDynamicFields(selectedType);
+
+        if (!activity) {
+          const defDur = getActivityDefaultDuration(selectedType, getSettings());
+          updateDurationDisplay(defDur);
+        }
+      }
+
+      renderCategoryEventPills(catKey);
+    });
+  });
+
+  // Initial render of category pills and dynamic fields
+  renderCategoryEventPills(selectedCategory);
   if (selectedType) {
     renderDynamicFields(selectedType, activity?.subFields);
   }
+  updateDurationDisplay(initialDuration);
 
-  // Event type change → render dynamic fields & auto-populate default duration
-  document.getElementById('modal-event-type').addEventListener('change', (e) => {
-    const val = e.target.value;
-    renderDynamicFields(val);
-    if (!activity && val) {
-      const durationInput = document.getElementById('modal-duration');
-      if (durationInput) {
-        durationInput.value = getActivityDefaultDuration(val, getSettings());
-      }
-    }
+  // Duration Slider & +/- 15m buttons
+  document.getElementById('modal-duration-slider')?.addEventListener('input', (e) => {
+    updateDurationDisplay(parseInt(e.target.value) || 0);
+  });
+
+  document.getElementById('btn-duration-minus')?.addEventListener('click', () => {
+    const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
+    updateDurationDisplay(Math.max(0, current - 15));
+  });
+
+  document.getElementById('btn-duration-plus')?.addEventListener('click', () => {
+    const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
+    updateDurationDisplay(current + 15);
+  });
+
+  // Recalculate end time when date or time changes
+  document.getElementById('modal-date')?.addEventListener('change', () => {
+    const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
+    updateDurationDisplay(current);
+  });
+  document.getElementById('modal-time')?.addEventListener('change', () => {
+    const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
+    updateDurationDisplay(current);
   });
 
   // Save
