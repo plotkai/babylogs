@@ -596,14 +596,9 @@ body {
 .activity-card__body {
   flex: 1;
   min-width: 0;
-}
-
-.activity-card__header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 3px;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .activity-card__title {
@@ -613,24 +608,43 @@ body {
   line-height: 1.25;
 }
 
-.activity-card__duration-badge {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--color-accent);
-  background: rgba(255, 128, 0, 0.1);
-  padding: 2px 8px;
-  border-radius: var(--radius-full);
-  white-space: nowrap;
+/* Time & Duration Column (Right side) */
+.activity-card__time-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 1px;
+  flex-shrink: 0;
+  min-width: 68px;
+  text-align: right;
+  user-select: none;
+  align-self: center;
 }
 
-.activity-card__time-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
+.activity-card__time-slot {
+  font-size: 11px;
   font-weight: 600;
+  color: var(--color-text-muted);
+  line-height: 1.2;
+}
+
+.activity-card__time-slot--single {
+  font-size: 13px;
+  font-weight: 700;
   color: var(--color-text-secondary);
-  margin-bottom: 2px;
+}
+
+.activity-card__duration-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-accent);
+  background: rgba(255, 128, 0, 0.12);
+  padding: 1px 7px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  line-height: 1.4;
+  margin: 1px 0;
 }
 
 .activity-card__tags {

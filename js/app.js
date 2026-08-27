@@ -609,6 +609,37 @@ async function loadTimeline() {
     `;
   }
 
+  function formatTimeColumn(activity, sortOrder) {
+    const startDate = new Date(activity.startTime);
+    const startTimeStr = !isNaN(startDate.getTime()) ? formatTime(startDate) : '';
+    const endDate = activity.endTime
+      ? new Date(activity.endTime)
+      : (activity.duration > 0 ? calculateEndTime(activity.startTime, activity.duration) : null);
+    const endTimeStr = endDate && !isNaN(endDate.getTime()) ? formatTime(endDate) : '';
+    const durationMins = activity.duration || 0;
+    const durationStr = durationMins > 0 ? (formatDuration(durationMins) || `${durationMins}m`) : '';
+
+    if (durationMins > 0 && endTimeStr && endTimeStr !== startTimeStr) {
+      const topTime = sortOrder === 'desc' ? endTimeStr : startTimeStr;
+      const bottomTime = sortOrder === 'desc' ? startTimeStr : endTimeStr;
+
+      return `
+        <div class="activity-card__time-col" title="${startTimeStr} – ${endTimeStr} (${durationStr})">
+          <span class="activity-card__time-slot">${topTime}</span>
+          <span class="activity-card__duration-badge">${durationStr}</span>
+          <span class="activity-card__time-slot">${bottomTime}</span>
+        </div>
+      `;
+    }
+
+    // Single point-in-time / instant event
+    return `
+      <div class="activity-card__time-col">
+        <span class="activity-card__time-slot activity-card__time-slot--single">${startTimeStr}</span>
+      </div>
+    `;
+  }
+
   timeline.innerHTML = timelineItems.map((item, i) => {
     if (item.type === 'gap') {
       const gapStartIso = `${formatDateKey(item.start)}T${String(item.start.getHours()).padStart(2, '0')}:${String(item.start.getMinutes()).padStart(2, '0')}`;
@@ -641,25 +672,17 @@ async function loadTimeline() {
 
     const activity = item.data;
     const typeConfig = allTypes[activity.eventType] || {};
-    const timeStr = activity.endTime
-      ? formatTimeRange(activity.startTime, activity.endTime)
-      : formatTime(activity.startTime);
-    const durationStr = activity.duration ? formatDuration(activity.duration) : '';
+    const titleText = typeConfig.label || activity.eventType;
 
     return `
       <div class="activity-card" data-id="${activity.id}" style="border-left-color: ${typeConfig.color || 'var(--color-primary)'}; animation-delay: ${i * 0.04}s;">
         <div class="activity-card__avatar">${typeConfig.emoji || '📋'}</div>
         <div class="activity-card__body">
-          <div class="activity-card__header">
-            <div class="activity-card__title">${activity.displayText || typeConfig.label || activity.eventType}</div>
-            ${durationStr ? `<span class="activity-card__duration-badge">${durationStr}</span>` : ''}
-          </div>
-          <div class="activity-card__time-row">
-            <span>⏰ ${timeStr}</span>
-          </div>
+          <div class="activity-card__title">${titleText}</div>
           ${formatActivityTags(activity)}
           ${activity.notes ? `<div class="activity-card__notes">💬 ${activity.notes}</div>` : ''}
         </div>
+        ${formatTimeColumn(activity, sortOrder)}
       </div>
     `;
   }).join('');
