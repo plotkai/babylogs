@@ -565,12 +565,12 @@ async function loadTimeline() {
   const fab = document.getElementById('fab');
   if (fab) fab.classList.remove('fab--pulse');
 
-  // Sort activities based on timelineSortOrder setting ('asc' or 'desc')
-  const sortOrder = settings.timelineSortOrder || 'asc';
+  // Sort activities based on timelineSortOrder setting ('asc' or 'desc', defaults to 'desc')
+  const sortOrder = settings.timelineSortOrder || 'desc';
   currentActivities.sort((a, b) => {
     const timeA = new Date(a.startTime).getTime();
     const timeB = new Date(b.startTime).getTime();
-    return sortOrder === 'desc' ? (timeB - timeA) : (timeA - timeB);
+    return sortOrder === 'asc' ? (timeA - timeB) : (timeB - timeA);
   });
 
   // Filter activities if an event filter is active
@@ -2911,8 +2911,8 @@ function renderSettings() {
         <div class="settings__row">
           <span class="settings__row-label">Sort Order</span>
           <select class="form-group__select" id="setting-timeline-sort" style="width: auto; padding: 6px 30px 6px 10px; font-size: 14px;">
-            <option value="asc" ${(settings.timelineSortOrder || 'asc') === 'asc' ? 'selected' : ''}>Oldest First (Ascending)</option>
-            <option value="desc" ${settings.timelineSortOrder === 'desc' ? 'selected' : ''}>Newest First (Descending)</option>
+            <option value="desc" ${(settings.timelineSortOrder || 'desc') === 'desc' ? 'selected' : ''}>Newest First (Descending)</option>
+            <option value="asc" ${settings.timelineSortOrder === 'asc' ? 'selected' : ''}>Oldest First (Ascending)</option>
           </select>
         </div>
         <div class="settings__row">

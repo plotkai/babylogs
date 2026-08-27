@@ -360,7 +360,7 @@ const DEFAULT_SETTINGS = {
     weight: 'kg',
     temperature: '°F'
   },
-  timelineSortOrder: 'asc',
+  timelineSortOrder: 'desc',
   timelineGapThreshold: 15,
   defaultDurations: {},
   notificationsEnabled: false,
