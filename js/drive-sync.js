@@ -556,15 +556,18 @@ class DriveSyncManager {
 
     const mergedActivities = Array.from(activityMap.values());
 
-    // 4. Merge Settings (keep local active baby if present, merge defaults)
+    // 4. Merge Settings (keep local active baby if present, otherwise select first synced baby)
     const currentSettings = getSettings();
+    if (!currentSettings.activeBabyId && mergedProfiles.length > 0) {
+      currentSettings.activeBabyId = mergedProfiles[0].id;
+    }
     if (remoteState.settings?.defaultDurations) {
       currentSettings.defaultDurations = {
         ...remoteState.settings.defaultDurations,
         ...currentSettings.defaultDurations
       };
-      saveSettings(currentSettings);
     }
+    saveSettings(currentSettings);
 
     const mergedCloudPayload = {
       version: '1.0.0',

@@ -78,10 +78,17 @@ async function init() {
  */
 function initDriveSyncHooks() {
   driveSync.onDataChanged((stats) => {
+    const profiles = getProfiles();
+    const settings = getSettings();
+    if (!settings.activeBabyId && profiles.length > 0) {
+      updateSetting('activeBabyId', profiles[0].id);
+    }
+
     // Reactive UI refresh when new changes sync in from partner
-    if (currentView === 'main') {
-      loadTimeline();
-      updateFeedTimer();
+    if (currentView === 'welcome' && profiles.length > 0) {
+      renderMain();
+    } else if (currentView === 'main') {
+      renderMain();
     } else if (currentView === 'summary') {
       renderSummary();
     } else if (currentView === 'manage-babies') {
@@ -96,8 +103,14 @@ function initDriveSyncHooks() {
   // If already connected with a syncId, run initial background sync
   if (driveSync.getSyncId() && navigator.onLine) {
     setTimeout(() => {
-      driveSync.sync(false).catch(err => console.debug('Initial sync deferred:', err));
-    }, 1500);
+      driveSync.sync(false).then(() => {
+        const profiles = getProfiles();
+        if (profiles.length > 0 && !getSettings().activeBabyId) {
+          updateSetting('activeBabyId', profiles[0].id);
+          if (currentView === 'welcome') renderMain();
+        }
+      }).catch(err => console.debug('Initial sync deferred:', err));
+    }, 1000);
   }
 }
 
@@ -259,8 +272,15 @@ async function renderMain() {
   const adConfig = getAdBannerConfig();
   const categories = getActivityCategories();
   const profiles = getProfiles();
-  const settings = getSettings();
-  const activeBaby = profiles.find(p => p.id === settings.activeBabyId);
+  let settings = getSettings();
+  let activeBaby = profiles.find(p => p.id === settings.activeBabyId);
+
+  // If activeBaby is not found, but profiles exist, select the first one
+  if (!activeBaby && profiles.length > 0) {
+    updateSetting('activeBabyId', profiles[0].id);
+    settings = getSettings();
+    activeBaby = profiles[0];
+  }
 
   if (!activeBaby) {
     renderWelcome();
@@ -1809,7 +1829,14 @@ function openCollabModal(initialTab = 'auto') {
         const res = await driveSync.sync(true);
         if (res.success) {
           showToast('Connected and synced with partner! 🎉');
+          const profiles = getProfiles();
+          if (profiles.length > 0) {
+            updateSetting('activeBabyId', profiles[0].id);
+          }
           renderModalContent();
+          if (currentView === 'welcome' || currentView === 'main') {
+            renderMain();
+          }
         } else {
           showToast(`Connection failed: ${driveSync.lastError || 'Unknown error'}`);
           if (btn) {
