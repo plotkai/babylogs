@@ -702,20 +702,23 @@ async function loadTimeline() {
       const bottomTime = sortOrder === 'desc' ? startTimeStr : endTimeStr;
 
       return `
-        <div class="activity-card__time-track" title="${startTimeStr} – ${endTimeStr} (${durationStr})">
-          <span class="activity-card__time-slot">${topTime}</span>
-          <span class="activity-card__time-dots"></span>
-          <span class="activity-card__duration-text">${durationStr}</span>
-          <span class="activity-card__time-dots"></span>
-          <span class="activity-card__time-slot">${bottomTime}</span>
+        <div class="activity-card__right" title="${startTimeStr} – ${endTimeStr} (${durationStr})">
+          <span class="activity-card__duration">${durationStr}</span>
+          <div class="activity-card__times">
+            <span class="activity-card__time-slot">${topTime}</span>
+            <span class="activity-card__time-colon">:</span>
+            <span class="activity-card__time-slot">${bottomTime}</span>
+          </div>
         </div>
       `;
     }
 
     // Single point-in-time / instant event
     return `
-      <div class="activity-card__time-track activity-card__time-track--single">
-        <span class="activity-card__time-slot activity-card__time-slot--single">${startTimeStr}</span>
+      <div class="activity-card__right">
+        <div class="activity-card__times activity-card__times--single">
+          <span class="activity-card__time-slot activity-card__time-slot--single">${startTimeStr}</span>
+        </div>
       </div>
     `;
   }
