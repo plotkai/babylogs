@@ -763,6 +763,30 @@ body {
   transform: scale(0.95);
 }
 
+/* Ongoing Active Gap Styling (Amber / Orange) */
+.timeline-gap__card--ongoing {
+  background: rgba(255, 128, 0, 0.08);
+  border-color: rgba(255, 128, 0, 0.45);
+}
+
+.timeline-gap__card--ongoing .timeline-gap__title {
+  color: #D35400;
+}
+
+.timeline-gap__badge--ongoing {
+  background: #FF8000;
+}
+
+.timeline-gap__card--ongoing .timeline-gap__btn {
+  border-color: rgba(255, 128, 0, 0.45);
+  color: #D35400;
+}
+
+.timeline-gap__card--ongoing .timeline-gap__btn:hover {
+  background: #FF8000;
+  color: #FFFFFF;
+}
+
 /* Stagger animation for timeline cards */
 .activity-card:nth-child(1) { animation-delay: 0.04s; }
 .activity-card:nth-child(2) { animation-delay: 0.08s; }

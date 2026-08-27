@@ -528,6 +528,8 @@ async function loadTimeline() {
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
   });
 
+  const now = new Date();
+  const viewingToday = isToday(currentDate);
   const timelineItems = [];
 
   if (gapThreshold > 0 && !currentEventFilter) {
@@ -535,13 +537,14 @@ async function loadTimeline() {
       const act = chronological[i];
       timelineItems.push({ type: 'activity', data: act });
 
+      const actEndTime = act.endTime 
+        ? new Date(act.endTime).getTime() 
+        : (act.duration > 0 
+            ? calculateEndTime(act.startTime, act.duration).getTime() 
+            : new Date(act.startTime).getTime());
+
       if (i < chronological.length - 1) {
         const nextAct = chronological[i + 1];
-        const actEndTime = act.endTime 
-          ? new Date(act.endTime).getTime() 
-          : (act.duration > 0 
-              ? calculateEndTime(act.startTime, act.duration).getTime() 
-              : new Date(act.startTime).getTime());
         const nextStartTime = new Date(nextAct.startTime).getTime();
 
         const gapMs = nextStartTime - actEndTime;
@@ -552,7 +555,23 @@ async function loadTimeline() {
             type: 'gap',
             start: new Date(actEndTime),
             end: new Date(nextStartTime),
-            duration: gapMinutes
+            duration: gapMinutes,
+            isOngoing: false
+          });
+        }
+      } else if (viewingToday && i === chronological.length - 1) {
+        // Gap from last activity today up to NOW (current time) — never beyond current time
+        const nowTime = now.getTime();
+        const gapMs = nowTime - actEndTime;
+        const gapMinutes = Math.floor(gapMs / (60 * 1000));
+
+        if (gapMinutes >= gapThreshold) {
+          timelineItems.push({
+            type: 'gap',
+            start: new Date(actEndTime),
+            end: now,
+            duration: gapMinutes,
+            isOngoing: true
           });
         }
       }
@@ -600,14 +619,16 @@ async function loadTimeline() {
             <div class="timeline-gap__dot">⏳</div>
             <div class="timeline-gap__line"></div>
           </div>
-          <div class="timeline-gap__card">
+          <div class="timeline-gap__card ${item.isOngoing ? 'timeline-gap__card--ongoing' : ''}">
             <div class="timeline-gap__info">
               <div class="timeline-gap__title">
-                <span class="timeline-gap__badge">Gap</span>
+                <span class="timeline-gap__badge ${item.isOngoing ? 'timeline-gap__badge--ongoing' : ''}">
+                  ${item.isOngoing ? 'Active Gap' : 'Gap'}
+                </span>
                 <span>${formatDuration(item.duration)} inactive</span>
               </div>
               <div class="timeline-gap__times">
-                ${formatTime(item.start)} – ${formatTime(item.end)}
+                ${formatTime(item.start)} – ${item.isOngoing ? 'Now' : formatTime(item.end)}
               </div>
             </div>
             <button class="timeline-gap__btn btn-log-gap" data-time="${gapStartIso}" title="Add activity during this gap">

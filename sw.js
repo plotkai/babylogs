@@ -1,6 +1,6 @@
 // sw.js — Service Worker for Babylogs PWA (offline-first caching)
 
-const CACHE_NAME = 'babylogs-v41';
+const CACHE_NAME = 'babylogs-v42';
 const ASSETS = [
   './',
   './index.html',
