@@ -178,13 +178,6 @@
               "required": false
             }
           ]
-        },
-        "bath": {
-          "label": "Bath",
-          "color": "#74B9FF",
-          "emoji": "🛁",
-          "defaultDuration": 15,
-          "fields": []
         }
       }
     },
@@ -192,6 +185,13 @@
       "label": "Health",
       "icon": "🏥",
       "types": {
+        "bath": {
+          "label": "Bath",
+          "color": "#74B9FF",
+          "emoji": "🛁",
+          "defaultDuration": 15,
+          "fields": []
+        },
         "medicine": {
           "label": "Medicine",
           "color": "#E17055",

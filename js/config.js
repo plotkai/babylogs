@@ -176,14 +176,14 @@ function getDefaultConfig() {
             fields: [
               { key: 'reason', label: 'Reason / Cause', type: 'select', options: ["Hunger", "Colic / Gas", "Tired / Sleepy", "Wet Diaper", "Discomfort", "Teething", "Overstimulated", "Unknown"], required: false }
             ]
-          },
-          bath: { label: 'Bath', color: '#74B9FF', emoji: '🛁', defaultDuration: 15, fields: [] }
+          }
         }
       },
       health: {
         label: 'Health',
         icon: '🏥',
         types: {
+          bath: { label: 'Bath', color: '#74B9FF', emoji: '🛁', defaultDuration: 15, fields: [] },
           medicine: { label: 'Medicine', color: '#E17055', emoji: '💊', defaultDuration: 2, fields: [] },
           temperature: { label: 'Temperature', color: '#FDCB6E', emoji: '🌡️', defaultDuration: 2, fields: [] },
           weight_check: { label: 'Weight Check', color: '#A29BFE', emoji: '⚖️', defaultDuration: 2, fields: [] },
