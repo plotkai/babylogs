@@ -1567,6 +1567,8 @@ function openCollabModal(initialTab = 'auto') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--syncing">🔄 Syncing...</span>`;
     } else if (driveSync.status === 'synced') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--synced">✓ Synced</span>`;
+    } else if (driveSync.status === 'auth_required') {
+      statusBadgeHtml = `<span class="collab-status-badge" style="background: rgba(243, 156, 18, 0.15); color: #E67E22;">🔑 Sign-in Required</span>`;
     } else if (driveSync.status === 'error') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--error">⚠️ Sync Error</span>`;
     } else if (driveSync.status === 'offline') {

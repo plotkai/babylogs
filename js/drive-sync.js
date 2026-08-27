@@ -154,8 +154,8 @@ class DriveSyncManager {
    * @param {boolean} promptExplicit - If true, displays the Google consent account chooser
    */
   async requestAccessToken(promptExplicit = false) {
-    // Return cached token if still valid and explicit prompt is not requested
-    if (!promptExplicit && this.accessToken && this.tokenExpiresAt > Date.now() + 60000) {
+    // Return cached token if still valid for at least 2 minutes and explicit prompt is not requested
+    if (!promptExplicit && this.accessToken && this.tokenExpiresAt > Date.now() + 120000) {
       return this.accessToken;
     }
 
@@ -164,8 +164,20 @@ class DriveSyncManager {
     return new Promise((resolve, reject) => {
       client.callback = async (tokenResponse) => {
         if (tokenResponse.error) {
-          console.error('GIS token error:', tokenResponse);
-          reject(new Error(tokenResponse.error_description || tokenResponse.error));
+          console.warn('GIS token error:', tokenResponse);
+          const rawErr = tokenResponse.error;
+          const desc = tokenResponse.error_description || rawErr;
+          const err = new Error(rawErr === 'popup_closed_by_user' ? 'Google sign-in popup was closed' : `Google Auth: ${desc}`);
+          err.code = 'AUTH_ERROR';
+          err.rawError = rawErr;
+          reject(err);
+          return;
+        }
+
+        if (!tokenResponse.access_token) {
+          const err = new Error('No access token returned from Google');
+          err.code = 'AUTH_ERROR';
+          reject(err);
           return;
         }
 
@@ -179,19 +191,19 @@ class DriveSyncManager {
         }));
 
         // Fetch user profile info
-        try {
-          await this.fetchUserProfile();
-        } catch (err) {
-          console.warn('Failed to fetch user profile:', err);
-        }
+        this.fetchUserProfile().catch(e => console.debug('Profile fetch deferred:', e));
 
         resolve(this.accessToken);
       };
 
       // Trigger OAuth popup
-      client.requestAccessToken({
-        prompt: promptExplicit ? 'consent select_account' : ''
-      });
+      try {
+        client.requestAccessToken({
+          prompt: promptExplicit ? 'consent select_account' : ''
+        });
+      } catch (err) {
+        reject(err);
+      }
     });
   }
 
@@ -691,9 +703,14 @@ class DriveSyncManager {
 
       return { success: true, stats };
     } catch (err) {
-      console.error('Drive Sync Error:', err);
-      this.lastError = err.message || 'Sync failed';
-      this.setStatus('error');
+      console.warn('Drive Sync Status:', err.message);
+      if (err.code === 'AUTH_ERROR' || err.status === 401 || err.rawError === 'access_denied') {
+        this.lastError = 'Session expired — tap Sync Now to sign in';
+        this.setStatus('auth_required');
+      } else {
+        this.lastError = err.message || 'Sync failed';
+        this.setStatus('error');
+      }
       return { success: false, error: err };
     } finally {
       this.isSyncing = false;
