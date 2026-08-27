@@ -314,6 +314,7 @@ const DEFAULT_SETTINGS = {
     temperature: '°F'
   },
   timelineSortOrder: 'asc',
+  defaultDurations: {},
   notificationsEnabled: false,
   feedReminderInterval: 180
 };
@@ -343,6 +344,27 @@ export function saveSettings(settings) {
 export function updateSetting(key, value) {
   const settings = getSettings();
   settings[key] = value;
+  saveSettings(settings);
+  return settings;
+}
+
+/**
+ * Update default duration for a specific activity type
+ */
+export function updateActivityDefaultDuration(eventType, durationMinutes) {
+  const settings = getSettings();
+  if (!settings.defaultDurations) settings.defaultDurations = {};
+  settings.defaultDurations[eventType] = durationMinutes;
+  saveSettings(settings);
+  return settings;
+}
+
+/**
+ * Reset all custom default durations
+ */
+export function resetDefaultDurations() {
+  const settings = getSettings();
+  settings.defaultDurations = {};
   saveSettings(settings);
   return settings;
 }

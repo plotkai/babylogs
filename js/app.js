@@ -1,7 +1,7 @@
 // js/app.js — Main app logic, routing, UI rendering
 
-import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig } from './config.js';
-import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings } from './db.js';
+import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
+import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
@@ -631,7 +631,7 @@ function openActivityModal(activity = null, presetType = null) {
 
     <div class="form-group">
       <label class="form-group__label">Duration (minutes)</label>
-      <input type="number" class="form-group__input" id="modal-duration" placeholder="e.g. 15" min="0" value="${activity ? (activity.duration ?? '') : (selectedType ? (getActivityType(selectedType)?.defaultDuration ?? '') : '')}">
+      <input type="number" class="form-group__input" id="modal-duration" placeholder="e.g. 15" min="0" value="${activity ? (activity.duration ?? '') : (selectedType ? (getActivityDefaultDuration(selectedType, settings) ?? '') : '')}">
     </div>
 
     <div id="dynamic-fields"></div>
@@ -662,10 +662,9 @@ function openActivityModal(activity = null, presetType = null) {
     const val = e.target.value;
     renderDynamicFields(val);
     if (!activity && val) {
-      const typeConfig = getActivityType(val);
       const durationInput = document.getElementById('modal-duration');
-      if (durationInput && typeConfig && typeConfig.defaultDuration !== undefined) {
-        durationInput.value = typeConfig.defaultDuration;
+      if (durationInput) {
+        durationInput.value = getActivityDefaultDuration(val, getSettings());
       }
     }
   });
@@ -2112,6 +2111,7 @@ function renderSettings() {
   const app = document.getElementById('app');
   const settings = getSettings();
   const config = getConfig();
+  const categories = getActivityCategories();
 
   app.innerHTML = `
     <header class="header" id="header">
@@ -2155,6 +2155,47 @@ function renderSettings() {
       </div>
 
       <div class="settings__group">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <div class="settings__group-title" style="margin-bottom: 0;">Default Duration</div>
+          <button class="btn btn--secondary btn--sm" id="btn-reset-durations" style="font-size: 11px; padding: 4px 8px;" title="Reset all default durations">
+            ↺ Reset Defaults
+          </button>
+        </div>
+        <div style="font-size: 12px; color: var(--color-text-secondary); margin-bottom: 12px; line-height: 1.4;">
+          Set default duration (in minutes) pre-filled when adding activities on the timeline:
+        </div>
+
+        ${Object.entries(categories).map(([catKey, cat]) => `
+          <div style="font-size: 11px; font-weight: 700; color: var(--color-primary); margin: 14px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.9;">
+            ${cat.icon} ${cat.label}
+          </div>
+          ${Object.entries(cat.types).map(([typeKey, type]) => {
+            const currentDur = getActivityDefaultDuration(typeKey, settings);
+            return `
+              <div class="settings__row">
+                <span class="settings__row-label" style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-size: 16px;">${type.emoji || '📝'}</span>
+                  <span>${type.label}</span>
+                </span>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <input type="number" 
+                    class="form-group__input setting-duration-input" 
+                    data-type="${typeKey}" 
+                    data-label="${type.label}"
+                    value="${currentDur}" 
+                    min="0" 
+                    max="1440" 
+                    step="1" 
+                    style="width: 70px; padding: 6px 8px; text-align: center; font-weight: 600; font-size: 13px;">
+                  <span style="font-size: 12px; color: var(--color-text-muted); width: 24px;">min</span>
+                </div>
+              </div>
+            `;
+          }).join('')}
+        `).join('')}
+      </div>
+
+      <div class="settings__group">
         <div class="settings__group-title">Notifications</div>
         <div class="settings__row">
           <span class="settings__row-label">Feed Reminders</span>
@@ -2183,22 +2224,6 @@ function renderSettings() {
           <button class="btn btn--danger btn--sm" id="btn-clear-data" style="margin-left: 12px; white-space: nowrap;">
             🗑️ Clear All
           </button>
-        </div>
-      </div>
-
-      <div class="settings__group">
-        <div class="settings__group-title">About</div>
-        <div class="settings__row">
-          <div>
-            <div class="settings__row-label">${config.app?.title || 'Babylogs by Plotkai'}</div>
-            <div style="font-size: 11px; color: var(--color-text-secondary); margin-top: 2px;">Version ${config.app?.version || '1.0.0'} • 100% Local & Private</div>
-          </div>
-          <button class="btn btn--secondary btn--sm" id="btn-settings-about" style="margin-left: 12px; white-space: nowrap;">
-            ℹ️ Details
-          </button>
-        </div>
-        <div class="settings__subtext">
-          💌 For any feedback, questions or requests, <a href="mailto:support@plotkai.in?subject=Babylogs%20Query" style="color: var(--color-accent); font-weight: 600; text-decoration: underline;">contact us</a> at <strong>support@plotkai.in</strong>
         </div>
       </div>
     </div>
@@ -2230,9 +2255,23 @@ function renderSettings() {
     if (e.target === e.currentTarget) closeModal();
   });
 
-  // Settings About button
-  document.getElementById('btn-settings-about')?.addEventListener('click', () => {
-    showAboutModal();
+  // Default duration change listeners
+  document.querySelectorAll('.setting-duration-input').forEach(input => {
+    input.addEventListener('change', (e) => {
+      const typeKey = e.target.dataset.type;
+      const typeLabel = e.target.dataset.label;
+      const val = Math.max(0, parseInt(e.target.value) || 0);
+      e.target.value = val;
+      updateActivityDefaultDuration(typeKey, val);
+      showToast(`${typeLabel} default: ${val} min ✓`);
+    });
+  });
+
+  // Reset default durations
+  document.getElementById('btn-reset-durations')?.addEventListener('click', () => {
+    resetDefaultDurations();
+    showToast('Default durations reset ✓');
+    renderSettings();
   });
 
   // Clear all data

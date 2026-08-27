@@ -59,6 +59,17 @@ export function getActivityType(typeKey) {
 }
 
 /**
+ * Get default duration for an activity type, factoring in user overrides
+ */
+export function getActivityDefaultDuration(typeKey, userSettings = null) {
+  if (userSettings?.defaultDurations && userSettings.defaultDurations[typeKey] !== undefined && userSettings.defaultDurations[typeKey] !== null && userSettings.defaultDurations[typeKey] !== '') {
+    return Number(userSettings.defaultDurations[typeKey]);
+  }
+  const type = getActivityType(typeKey);
+  return type?.defaultDuration ?? 15;
+}
+
+/**
  * Get activity categories for grouped dropdown
  */
 export function getActivityCategories() {
