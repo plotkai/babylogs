@@ -77,10 +77,6 @@ async function init() {
  * Initialize Drive Sync status listeners and reactive data reload
  */
 function initDriveSyncHooks() {
-  driveSync.onStatusChange((status) => {
-    updateHeaderSyncBadge(status);
-  });
-
   driveSync.onDataChanged((stats) => {
     // Reactive UI refresh when new changes sync in from partner
     if (currentView === 'main') {
@@ -102,38 +98,6 @@ function initDriveSyncHooks() {
     setTimeout(() => {
       driveSync.sync(false).catch(err => console.debug('Initial sync deferred:', err));
     }, 1500);
-  }
-}
-
-/**
- * Update header sync indicator badge/icon
- */
-function updateHeaderSyncBadge(status) {
-  const syncBtn = document.getElementById('header-sync-btn');
-  const syncIcon = document.getElementById('header-sync-icon');
-  if (!syncBtn || !syncIcon) return;
-
-  if (status === 'syncing') {
-    syncIcon.textContent = '🔄';
-    syncIcon.className = 'header__sync-icon header__sync-icon--spin';
-    syncBtn.title = 'Syncing with Google Drive...';
-  } else if (status === 'synced') {
-    syncIcon.textContent = '☁️';
-    syncIcon.className = 'header__sync-icon';
-    syncBtn.title = 'Google Drive Synced ✓';
-  } else if (status === 'error') {
-    syncIcon.textContent = '⚠️';
-    syncIcon.className = 'header__sync-icon';
-    syncBtn.title = 'Sync issue: ' + (driveSync.lastError || 'Click to view');
-  } else if (status === 'offline') {
-    syncIcon.textContent = '📵';
-    syncIcon.className = 'header__sync-icon';
-    syncBtn.title = 'Offline';
-  } else {
-    // idle / not connected
-    syncIcon.textContent = '👥';
-    syncIcon.className = 'header__sync-icon';
-    syncBtn.title = 'Multi-Parent Collab (Sync)';
   }
 }
 
@@ -311,18 +275,13 @@ async function renderMain() {
         <span class="header__title-main">Babylogs</span>
         <span class="header__title-sub">by Plotkai</span>
       </span>
-      <div class="header__actions" style="display: flex; align-items: center; gap: 4px;">
-        <button class="header__action-btn" id="header-sync-btn" aria-label="Collab & Cloud Sync" title="Collab & Cloud Sync">
-          <span id="header-sync-icon" class="header__sync-icon">👥</span>
-        </button>
-        <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="20" x2="18" y2="10"></line>
-            <line x1="12" y1="20" x2="12" y2="4"></line>
-            <line x1="6" y1="20" x2="6" y2="14"></line>
-          </svg>
-        </button>
-      </div>
+      <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      </button>
     </header>
 
     <div class="main-content">
@@ -522,10 +481,6 @@ function bindMainEvents() {
 
   // Baby switcher
   document.getElementById('baby-switcher-toggle').addEventListener('click', toggleBabySwitcher);
-
-  // Collab & Sync button
-  document.getElementById('header-sync-btn')?.addEventListener('click', () => openCollabModal());
-  updateHeaderSyncBadge(driveSync.status);
 
   // Analytics / Summary button
   document.getElementById('analytics-btn')?.addEventListener('click', renderSummary);
@@ -1477,7 +1432,7 @@ function renderSidebar() {
     </button>
     <div class="sidebar__divider"></div>
     <button class="sidebar__item" id="nav-collab" style="color: var(--color-primary); font-weight: 600;">
-      <span class="sidebar__item-icon">👥</span> Collab
+      <span class="sidebar__item-icon">👥</span> Collaborate
     </button>
     <button class="sidebar__item" id="nav-export">
       <span class="sidebar__item-icon">📤</span> Export Data
@@ -1566,7 +1521,7 @@ function openCollabModal(initialTab = 'auto') {
   const body = document.getElementById('modal-body');
   const footer = document.getElementById('modal-footer');
 
-  title.textContent = '👥 Multi-Parent Collab';
+  title.textContent = '👥 Multi-Parent Collaboration';
 
   const isConnected = driveSync.isConnected();
   const currentSyncId = driveSync.getSyncId();
@@ -1606,8 +1561,6 @@ function openCollabModal(initialTab = 'auto') {
       else timeAgoText = lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    const hasValidClientId = driveSync.hasValidClientId();
-
     body.innerHTML = `
       <div class="collab-modal">
         <!-- Account / Cloud Status Banner -->
@@ -1623,31 +1576,6 @@ function openCollabModal(initialTab = 'auto') {
           </div>
           ${statusBadgeHtml}
         </div>
-
-        ${!hasValidClientId ? `
-          <!-- OAUTH CLIENT ID SETUP PROMPT -->
-          <div class="collab-card" id="collab-client-id-card" style="border: 1.5px solid var(--color-accent); background: rgba(255, 128, 0, 0.04);">
-            <div class="collab-card__title" style="color: var(--color-accent);">
-              <span>🔑 Google OAuth Client ID Required</span>
-            </div>
-            <p class="collab-card__desc">
-              To connect your Google account with zero backend servers, enter your Google Cloud OAuth Client ID below:
-            </p>
-            <div class="form-group" style="margin-bottom: 0;">
-              <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="e.g. 123456789-abcdef.apps.googleusercontent.com" value="${driveSync.getClientId()}">
-            </div>
-            <button class="btn btn--primary btn--sm" id="btn-save-custom-client-id" style="width: 100%;">
-              💾 Save Client ID & Activate Sync
-            </button>
-            <div class="collab-tip-box" style="font-size: 11px; margin-top: 4px;">
-              <strong>Quick 2-minute setup:</strong><br>
-              1. Open <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color: var(--color-primary); font-weight: 600; text-decoration: underline;">Google Cloud Console Credentials</a>.<br>
-              2. Click <strong>Create Credentials > OAuth client ID</strong> (Web application).<br>
-              3. Under Authorized JavaScript origins, add <code>https://babylogs.plotkai.in</code> (and <code>http://localhost:5500</code> for local test).<br>
-              4. Copy the Client ID ending with <code>.apps.googleusercontent.com</code> and paste it above.
-            </div>
-          </div>
-        ` : ''}
 
         ${hasSyncId ? `
           <!-- ACTIVE COLLABORATION VIEW (FOR BOTH CREATOR & JOINER) -->
@@ -1731,17 +1659,6 @@ function openCollabModal(initialTab = 'auto') {
             </div>
           `}
         `}
-
-        ${hasValidClientId ? `
-          <!-- Collapsible Client ID Override Details when valid -->
-          <details style="margin-top: 6px; font-size: 12px; color: var(--color-text-muted);">
-            <summary style="cursor: pointer; font-weight: 500;">⚙️ Change OAuth Client ID</summary>
-            <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
-              <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="Google OAuth Client ID" value="${driveSync.getClientId()}">
-              <button class="btn btn--secondary btn--sm" id="btn-save-custom-client-id">Update Client ID</button>
-            </div>
-          </details>
-        ` : ''}
       </div>
     `;
 
@@ -1791,7 +1708,7 @@ function openCollabModal(initialTab = 'auto') {
       if (navigator.share) {
         try {
           await navigator.share({
-            title: 'Babylogs Sync Invite',
+            title: 'Babylogs Collaboration Invite',
             text: 'Join my baby activity tracker on Babylogs so we can log feeds, diapers, and sleep together in real time:',
             url: inviteLink
           });
@@ -1828,7 +1745,7 @@ function openCollabModal(initialTab = 'auto') {
     // Unlink File
     document.getElementById('btn-collab-unlink')?.addEventListener('click', () => {
       showConfirm(
-        'Unlink Cloud Sync',
+        'Disconnect Collaboration',
         'Are you sure you want to disconnect from this shared cloud file? Your local baby logs will remain safely stored on this device.',
         () => {
           driveSync.signOut(true);
@@ -1840,18 +1757,6 @@ function openCollabModal(initialTab = 'auto') {
 
     // Creator Flow: Create Cloud File
     document.getElementById('btn-collab-create-drive')?.addEventListener('click', async () => {
-      // Check if user entered a client ID in the input
-      const customIdInput = document.getElementById('collab-custom-client-id');
-      if (customIdInput && customIdInput.value.trim().length > 10) {
-        driveSync.setCustomClientId(customIdInput.value.trim());
-      }
-
-      if (!driveSync.hasValidClientId()) {
-        showToast('Please enter your Google OAuth Client ID first');
-        customIdInput?.focus();
-        return;
-      }
-
       const btn = document.getElementById('btn-collab-create-drive');
       if (btn) {
         btn.innerHTML = '<span>Creating Cloud File...</span>';
@@ -1873,18 +1778,6 @@ function openCollabModal(initialTab = 'auto') {
 
     // Joiner Flow: Join Existing File
     document.getElementById('btn-collab-join-submit')?.addEventListener('click', async () => {
-      // Check if user entered a client ID in the input
-      const customIdInput = document.getElementById('collab-custom-client-id');
-      if (customIdInput && customIdInput.value.trim().length > 10) {
-        driveSync.setCustomClientId(customIdInput.value.trim());
-      }
-
-      if (!driveSync.hasValidClientId()) {
-        showToast('Please enter your Google OAuth Client ID first');
-        customIdInput?.focus();
-        return;
-      }
-
       const input = document.getElementById('collab-join-input');
       const btn = document.getElementById('btn-collab-join-submit');
       let rawVal = input?.value?.trim() || '';
@@ -1931,23 +1824,6 @@ function openCollabModal(initialTab = 'auto') {
           btn.disabled = false;
         }
       }
-    });
-
-    // Save custom client ID
-    document.getElementById('btn-save-custom-client-id')?.addEventListener('click', () => {
-      const customIdInput = document.getElementById('collab-custom-client-id');
-      const val = customIdInput?.value?.trim() || '';
-      if (!val) {
-        showToast('Please paste a Google OAuth Client ID');
-        return;
-      }
-      if (!val.endsWith('.apps.googleusercontent.com')) {
-        showToast('Client ID should end with .apps.googleusercontent.com');
-        return;
-      }
-      driveSync.setCustomClientId(val);
-      showToast('Google Client ID saved! ✓');
-      renderModalContent();
     });
   }
 
