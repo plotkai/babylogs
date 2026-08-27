@@ -116,7 +116,7 @@ export function getAppConfig() {
  */
 export function getDriveSyncConfig() {
   return getConfig().googleDriveSync || {
-    clientId: '',
+    clientId: '275565388851-qhhp364amhopj2q9sseiu3mqe47efio4.apps.googleusercontent.com',
     scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
     fileName: 'babylogs_store.json',
     autoSyncIntervalMinutes: 5,
@@ -214,7 +214,7 @@ function getDefaultConfig() {
     adBanner: { enabled: true, height: '60px', adSlotId: '', adClient: '', placeholder: 'Ad Space' },
     app: { title: 'Babylogs by Plotkai', version: '1.0.0' },
     googleDriveSync: {
-      clientId: '',
+      clientId: '275565388851-qhhp364amhopj2q9sseiu3mqe47efio4.apps.googleusercontent.com',
       scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
       fileName: 'babylogs_store.json',
       autoSyncIntervalMinutes: 5,
