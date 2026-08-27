@@ -112,6 +112,19 @@ export function getAppConfig() {
 }
 
 /**
+ * Get Google Drive sync configuration
+ */
+export function getDriveSyncConfig() {
+  return getConfig().googleDriveSync || {
+    clientId: '',
+    scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+    fileName: 'babylogs_store.json',
+    autoSyncIntervalMinutes: 5,
+    appUrl: 'https://babylogs.plotkai.in'
+  };
+}
+
+/**
  * Minimal fallback config if JSON fails to load
  */
 function getDefaultConfig() {
@@ -199,6 +212,13 @@ function getDefaultConfig() {
     },
     notifications: { feedReminderDefault: 180, reminderOptions: [120, 180, 240] },
     adBanner: { enabled: true, height: '60px', adSlotId: '', adClient: '', placeholder: 'Ad Space' },
-    app: { title: 'Babylogs by Plotkai', version: '1.0.0' }
+    app: { title: 'Babylogs by Plotkai', version: '1.0.0' },
+    googleDriveSync: {
+      clientId: '366078029919-example.apps.googleusercontent.com',
+      scopes: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+      fileName: 'babylogs_store.json',
+      autoSyncIntervalMinutes: 5,
+      appUrl: 'https://babylogs.plotkai.in'
+    }
   };
 }

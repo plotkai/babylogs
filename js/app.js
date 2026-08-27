@@ -7,6 +7,8 @@ import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, i
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
 import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
+import { driveSync } from './drive-sync.js';
+import { generateQRCodeSVG } from './qrcode.js';
 
 // ==================== STATE ====================
 let currentView = 'welcome'; // 'welcome' | 'main' | 'summary' | 'settings'
@@ -39,6 +41,9 @@ async function init() {
   // Load config
   await loadConfig();
 
+  // Initialize Drive Sync Hooks & Auto-Sync
+  initDriveSyncHooks();
+
   // Register service worker
   if ('serviceWorker' in navigator) {
     try {
@@ -63,6 +68,94 @@ async function init() {
 
   // Check incoming Web Share Target or File Handling API ("Open With Babylogs")
   checkIncomingSharedBackup();
+
+  // Check incoming deep link with ?syncId=...
+  checkIncomingSyncId();
+}
+
+/**
+ * Initialize Drive Sync status listeners and reactive data reload
+ */
+function initDriveSyncHooks() {
+  driveSync.onStatusChange((status) => {
+    updateHeaderSyncBadge(status);
+  });
+
+  driveSync.onDataChanged((stats) => {
+    // Reactive UI refresh when new changes sync in from partner
+    if (currentView === 'main') {
+      loadTimeline();
+      updateFeedTimer();
+    } else if (currentView === 'summary') {
+      renderSummary();
+    } else if (currentView === 'manage-babies') {
+      renderManageBabies();
+    }
+
+    if (stats && (stats.newFromRemote > 0 || stats.updatedFromRemote > 0)) {
+      showToast(`Cloud Synced: +${stats.newFromRemote + stats.updatedFromRemote} updates from partner ✓`);
+    }
+  });
+
+  // If already connected with a syncId, run initial background sync
+  if (driveSync.getSyncId() && navigator.onLine) {
+    setTimeout(() => {
+      driveSync.sync(false).catch(err => console.debug('Initial sync deferred:', err));
+    }, 1500);
+  }
+}
+
+/**
+ * Update header sync indicator badge/icon
+ */
+function updateHeaderSyncBadge(status) {
+  const syncBtn = document.getElementById('header-sync-btn');
+  const syncIcon = document.getElementById('header-sync-icon');
+  if (!syncBtn || !syncIcon) return;
+
+  if (status === 'syncing') {
+    syncIcon.textContent = '🔄';
+    syncIcon.className = 'header__sync-icon header__sync-icon--spin';
+    syncBtn.title = 'Syncing with Google Drive...';
+  } else if (status === 'synced') {
+    syncIcon.textContent = '☁️';
+    syncIcon.className = 'header__sync-icon';
+    syncBtn.title = 'Google Drive Synced ✓';
+  } else if (status === 'error') {
+    syncIcon.textContent = '⚠️';
+    syncIcon.className = 'header__sync-icon';
+    syncBtn.title = 'Sync issue: ' + (driveSync.lastError || 'Click to view');
+  } else if (status === 'offline') {
+    syncIcon.textContent = '📵';
+    syncIcon.className = 'header__sync-icon';
+    syncBtn.title = 'Offline';
+  } else {
+    // idle / not connected
+    syncIcon.textContent = '👥';
+    syncIcon.className = 'header__sync-icon';
+    syncBtn.title = 'Multi-Parent Collab (Sync)';
+  }
+}
+
+/**
+ * Check for incoming deep link ?syncId=<FILE_ID> in URL
+ */
+function checkIncomingSyncId() {
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const incomingSyncId = urlParams.get('syncId');
+    if (incomingSyncId && incomingSyncId.trim().length > 0) {
+      driveSync.setSyncId(incomingSyncId.trim());
+      // Clean URL without reloading page
+      window.history.replaceState({}, document.title, window.location.pathname);
+      showToast('🔗 Shared baby log detected!');
+      setTimeout(() => {
+        openCollabModal('join');
+      }, 500);
+    }
+  } catch (err) {
+    console.debug('No incoming syncId in URL:', err);
+  }
 }
 
 /**
@@ -182,6 +275,7 @@ function renderWelcome() {
 
     addProfile(profile);
     updateSetting('activeBabyId', profile.id);
+    driveSync.queueSync();
     renderMain();
   });
 
@@ -217,13 +311,18 @@ async function renderMain() {
         <span class="header__title-main">Babylogs</span>
         <span class="header__title-sub">by Plotkai</span>
       </span>
-      <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
-      </button>
+      <div class="header__actions" style="display: flex; align-items: center; gap: 4px;">
+        <button class="header__action-btn" id="header-sync-btn" aria-label="Collab & Cloud Sync" title="Collab & Cloud Sync">
+          <span id="header-sync-icon" class="header__sync-icon">👥</span>
+        </button>
+        <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <div class="main-content">
@@ -423,6 +522,10 @@ function bindMainEvents() {
 
   // Baby switcher
   document.getElementById('baby-switcher-toggle').addEventListener('click', toggleBabySwitcher);
+
+  // Collab & Sync button
+  document.getElementById('header-sync-btn')?.addEventListener('click', () => openCollabModal());
+  updateHeaderSyncBadge(driveSync.status);
 
   // Analytics / Summary button
   document.getElementById('analytics-btn')?.addEventListener('click', renderSummary);
@@ -1205,6 +1308,9 @@ async function saveActivity() {
       trackActivityLogged(eventType, false);
     }
 
+    // Auto-sync in background to Google Drive
+    driveSync.queueSync();
+
     closeModal();
     await loadTimeline();
     updateFeedTimer();
@@ -1221,6 +1327,7 @@ function confirmDeleteActivity(activity) {
     async () => {
       try {
         await deleteActivity(activity.id);
+        driveSync.queueSync();
         showToast('Activity deleted');
         await loadTimeline();
         updateFeedTimer();
@@ -1337,6 +1444,7 @@ function openAddBabyModal() {
     const profile = { id: generateId(), name, dob, createdAt: new Date().toISOString() };
     addProfile(profile);
     updateSetting('activeBabyId', profile.id);
+    driveSync.queueSync();
     closeModal();
     if (currentView === 'manage-babies') {
       renderManageBabies();
@@ -1368,8 +1476,8 @@ function renderSidebar() {
       <span class="sidebar__item-icon">⚙️</span> Settings
     </button>
     <div class="sidebar__divider"></div>
-    <button class="sidebar__item" id="nav-share-whatsapp" style="color: #25D366; font-weight: 600;">
-      <span class="sidebar__item-icon">💬</span> Share on WhatsApp
+    <button class="sidebar__item" id="nav-collab" style="color: var(--color-primary); font-weight: 600;">
+      <span class="sidebar__item-icon">👥</span> Collab
     </button>
     <button class="sidebar__item" id="nav-export">
       <span class="sidebar__item-icon">📤</span> Export Data
@@ -1393,31 +1501,9 @@ function renderSidebar() {
   document.getElementById('nav-summary')?.addEventListener('click', () => { closeSidebar(); renderSummary(); });
   document.getElementById('nav-manage-babies')?.addEventListener('click', () => { closeSidebar(); renderManageBabies(); });
   document.getElementById('nav-settings')?.addEventListener('click', () => { closeSidebar(); renderSettings(); });
-  document.getElementById('nav-share-whatsapp')?.addEventListener('click', async () => {
+  document.getElementById('nav-collab')?.addEventListener('click', () => {
     closeSidebar();
-    const profiles = getProfiles();
-    const settings = getSettings();
-    const activeBaby = profiles.find(p => p.id === settings.activeBabyId);
-
-    if (!activeBaby) {
-      openExportModal();
-      return;
-    }
-
-    try {
-      const bounds = {
-        babyId: activeBaby.id,
-        babyName: activeBaby.name,
-        dateRangeLabel: 'all-time'
-      };
-      const res = await shareBackup(bounds);
-      if (res && res.shared) {
-        trackDataExport('share_whatsapp_menu', 'all-time');
-        showToast(`Shared ${activeBaby.name}'s data via WhatsApp ✓`);
-      }
-    } catch (err) {
-      openExportModal();
-    }
+    openCollabModal();
   });
   document.getElementById('nav-export')?.addEventListener('click', () => {
     closeSidebar();
@@ -1470,6 +1556,341 @@ function showAboutModal() {
   document.getElementById('confirm-ok').addEventListener('click', () => {
     overlay.classList.remove('active');
   });
+}
+
+// ==================== COLLAB / CLOUD SYNC MODAL ====================
+
+function openCollabModal(initialTab = 'auto') {
+  const overlay = document.getElementById('modal-overlay');
+  const title = document.getElementById('modal-title');
+  const body = document.getElementById('modal-body');
+  const footer = document.getElementById('modal-footer');
+
+  title.textContent = '👥 Multi-Parent Collab';
+
+  const isConnected = driveSync.isConnected();
+  const currentSyncId = driveSync.getSyncId();
+
+  // Determine active initial tab: 'start' | 'join' | 'connected'
+  let activeTab = initialTab;
+  if (activeTab === 'auto') {
+    activeTab = currentSyncId ? 'connected' : 'start';
+  }
+
+  function renderModalContent() {
+    const hasSyncId = !!driveSync.getSyncId();
+    const isAuth = !!(driveSync.accessToken && driveSync.tokenExpiresAt > Date.now());
+    const inviteLink = driveSync.getInviteLink();
+    const qrSvg = inviteLink ? generateQRCodeSVG(inviteLink, { size: 170 }) : '';
+    const lastSyncTime = driveSync.getLastSyncTime();
+
+    let statusBadgeHtml = '';
+    if (driveSync.status === 'syncing') {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--syncing">🔄 Syncing...</span>`;
+    } else if (driveSync.status === 'synced') {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--synced">✓ Synced</span>`;
+    } else if (driveSync.status === 'error') {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--error">⚠️ Sync Error</span>`;
+    } else if (driveSync.status === 'offline') {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--offline">📵 Offline</span>`;
+    } else {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--idle">Ready</span>`;
+    }
+
+    let timeAgoText = 'Never';
+    if (lastSyncTime) {
+      const diffMs = Date.now() - lastSyncTime.getTime();
+      const diffMins = Math.floor(diffMs / 60000);
+      if (diffMins < 1) timeAgoText = 'Just now';
+      else if (diffMins < 60) timeAgoText = `${diffMins}m ago`;
+      else timeAgoText = lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
+
+    body.innerHTML = `
+      <div class="collab-modal">
+        <!-- Account / Cloud Status Banner -->
+        <div class="collab-status-card">
+          <div class="collab-user-info">
+            <div class="collab-avatar">
+              ${driveSync.currentUser?.picture ? `<img src="${driveSync.currentUser.picture}" alt="Avatar">` : (driveSync.currentUser?.name ? driveSync.currentUser.name.charAt(0).toUpperCase() : '☁️')}
+            </div>
+            <div class="collab-user-details">
+              <div class="collab-user-name">${driveSync.currentUser?.name || (isAuth ? 'Google Account Connected' : 'Google Drive Cloud Sync')}</div>
+              <div class="collab-user-email">${driveSync.currentUser?.email || (isAuth ? 'Connected' : 'Zero-backend private sync')}</div>
+            </div>
+          </div>
+          ${statusBadgeHtml}
+        </div>
+
+        ${hasSyncId ? `
+          <!-- ACTIVE COLLABORATION VIEW (FOR BOTH CREATOR & JOINER) -->
+          <div class="collab-card">
+            <div class="collab-card__title">
+              <span>🔗 Active Shared Baby Log</span>
+            </div>
+            <p class="collab-card__desc">
+              All logs (feeds, diapers, sleep) sync automatically between you and your partner with offline support.
+            </p>
+
+            <div class="form-group" style="margin-bottom: 0;">
+              <label class="form-group__label" style="font-size: 11px;">Invite Link (Share with Partner)</label>
+              <div class="collab-link-box">
+                <input type="text" class="collab-link-text" id="collab-invite-input" value="${inviteLink}" readonly>
+                <button class="btn-copy" id="btn-collab-copy">📋 Copy</button>
+              </div>
+            </div>
+
+            <div class="collab-actions-row">
+              <button class="btn btn--secondary btn--sm" id="btn-collab-share-native">📲 Share Link</button>
+              <button class="btn btn--primary btn--sm" id="btn-collab-sync-now">🔄 Sync Now</button>
+            </div>
+
+            <!-- Instant QR Code Display -->
+            <div class="collab-qr-container">
+              ${qrSvg}
+              <div class="collab-qr-caption">📷 Scan with partner's phone to join</div>
+            </div>
+
+            <div class="collab-meta-row">
+              <span>Last Synced: <strong>${timeAgoText}</strong></span>
+              <button class="btn-text" id="btn-collab-unlink" style="color: var(--color-danger); font-size: 12px; cursor: pointer; background: none; border: none; font-weight: 600;">Disconnect</button>
+            </div>
+          </div>
+        ` : `
+          <!-- FRESH SETUP VIEW (START vs JOIN TABS) -->
+          <div class="collab-tabs">
+            <button class="collab-tab ${activeTab === 'start' ? 'collab-tab--active' : ''}" id="tab-collab-start">
+              ✨ Start New Log
+            </button>
+            <button class="collab-tab ${activeTab === 'join' ? 'collab-tab--active' : ''}" id="tab-collab-join">
+              🤝 Join Partner's Log
+            </button>
+          </div>
+
+          ${activeTab === 'start' ? `
+            <!-- CREATOR FLOW -->
+            <div class="collab-card">
+              <div class="collab-card__title">👶 Share Your Baby's Log</div>
+              <div class="collab-card__desc">
+                Creates a secure, private <code>babylogs_store.json</code> in your Google Drive and generates an invite QR code & link for your partner.
+              </div>
+
+              <div class="collab-tip-box">
+                🔒 <strong>Zero Custom Servers:</strong> Your data is stored directly in your Google Drive using the narrow <code>drive.file</code> scope.
+              </div>
+
+              <button class="btn btn-google" id="btn-collab-create-drive">
+                <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                <span>Connect Google & Create Cloud Log</span>
+              </button>
+            </div>
+          ` : `
+            <!-- JOINER FLOW -->
+            <div class="collab-card">
+              <div class="collab-card__title">🤝 Join Partner's Baby Log</div>
+              <div class="collab-card__desc">
+                Paste the invite link or File ID shared by your partner to connect and sync your logs.
+              </div>
+
+              <div class="form-group">
+                <label class="form-group__label">Sync ID or Invite Link</label>
+                <input type="text" class="form-group__input" id="collab-join-input" placeholder="Paste link or Sync ID..." value="${driveSync.getSyncId() || ''}">
+              </div>
+
+              <button class="btn btn-google" id="btn-collab-join-submit">
+                <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
+                <span>Connect & Sync with Partner</span>
+              </button>
+            </div>
+          `}
+        `}
+
+        <!-- Optional Client ID Override Details -->
+        <details style="margin-top: 6px; font-size: 12px; color: var(--color-text-muted);">
+          <summary style="cursor: pointer; font-weight: 500;">⚙️ Advanced OAuth Client ID</summary>
+          <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 6px;">
+            <input type="text" class="form-group__input" id="collab-custom-client-id" placeholder="Google OAuth Client ID" value="${driveSync.getClientId()}">
+            <button class="btn btn--secondary btn--sm" id="btn-save-custom-client-id">Save Client ID</button>
+          </div>
+        </details>
+      </div>
+    `;
+
+    footer.innerHTML = `
+      <button class="btn btn--secondary btn--full" id="modal-cancel">Done</button>
+    `;
+
+    bindCollabEvents();
+  }
+
+  function bindCollabEvents() {
+    document.getElementById('modal-cancel')?.addEventListener('click', closeModal);
+
+    // Tab switching
+    document.getElementById('tab-collab-start')?.addEventListener('click', () => {
+      activeTab = 'start';
+      renderModalContent();
+    });
+    document.getElementById('tab-collab-join')?.addEventListener('click', () => {
+      activeTab = 'join';
+      renderModalContent();
+    });
+
+    // Copy Invite Link
+    document.getElementById('btn-collab-copy')?.addEventListener('click', async () => {
+      const input = document.getElementById('collab-invite-input');
+      const copyBtn = document.getElementById('btn-collab-copy');
+      if (input) {
+        input.select();
+        try {
+          await navigator.clipboard.writeText(input.value);
+          if (copyBtn) {
+            copyBtn.textContent = 'Copied! ✓';
+            setTimeout(() => { copyBtn.textContent = '📋 Copy'; }, 2000);
+          }
+          showToast('Invite link copied to clipboard! 📋');
+        } catch (e) {
+          document.execCommand('copy');
+          showToast('Invite link copied! 📋');
+        }
+      }
+    });
+
+    // Native Share
+    document.getElementById('btn-collab-share-native')?.addEventListener('click', async () => {
+      const inviteLink = driveSync.getInviteLink();
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'Babylogs Sync Invite',
+            text: 'Join my baby activity tracker on Babylogs so we can log feeds, diapers, and sleep together in real time:',
+            url: inviteLink
+          });
+        } catch (e) {
+          console.debug('Native share dismissed:', e);
+        }
+      } else {
+        navigator.clipboard.writeText(inviteLink);
+        showToast('Invite link copied to clipboard! 📋');
+      }
+    });
+
+    // Sync Now
+    document.getElementById('btn-collab-sync-now')?.addEventListener('click', async () => {
+      const syncBtn = document.getElementById('btn-collab-sync-now');
+      if (syncBtn) {
+        syncBtn.textContent = '🔄 Syncing...';
+        syncBtn.disabled = true;
+      }
+      try {
+        const res = await driveSync.sync(true);
+        if (res.success) {
+          showToast('Google Drive synced successfully! ✓');
+        } else {
+          showToast(`Sync failed: ${driveSync.lastError || 'Unknown error'}`);
+        }
+      } catch (err) {
+        showToast(`Sync failed: ${err.message}`);
+      } finally {
+        renderModalContent();
+      }
+    });
+
+    // Unlink File
+    document.getElementById('btn-collab-unlink')?.addEventListener('click', () => {
+      showConfirm(
+        'Unlink Cloud Sync',
+        'Are you sure you want to disconnect from this shared cloud file? Your local baby logs will remain safely stored on this device.',
+        () => {
+          driveSync.signOut(true);
+          showToast('Disconnected from cloud sync');
+          renderModalContent();
+        }
+      );
+    });
+
+    // Creator Flow: Create Cloud File
+    document.getElementById('btn-collab-create-drive')?.addEventListener('click', async () => {
+      const btn = document.getElementById('btn-collab-create-drive');
+      if (btn) {
+        btn.innerHTML = '<span>Creating Cloud File...</span>';
+        btn.disabled = true;
+      }
+      try {
+        const fileId = await driveSync.createCloudStoreFile(true);
+        showToast('Shared cloud file created! 🎉');
+        renderModalContent();
+      } catch (err) {
+        console.error('Create store error:', err);
+        showToast(`Could not create cloud file: ${err.message}`);
+        if (btn) {
+          btn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>Connect Google & Create Cloud Log</span>`;
+          btn.disabled = false;
+        }
+      }
+    });
+
+    // Joiner Flow: Join Existing File
+    document.getElementById('btn-collab-join-submit')?.addEventListener('click', async () => {
+      const input = document.getElementById('collab-join-input');
+      const btn = document.getElementById('btn-collab-join-submit');
+      let rawVal = input?.value?.trim() || '';
+
+      if (!rawVal) {
+        showToast('Please enter a Sync ID or Invite Link');
+        return;
+      }
+
+      // Extract syncId if a full URL was pasted
+      if (rawVal.includes('syncId=')) {
+        try {
+          const url = new URL(rawVal);
+          rawVal = url.searchParams.get('syncId') || rawVal;
+        } catch (e) {
+          const match = rawVal.match(/syncId=([^&]+)/);
+          if (match) rawVal = match[1];
+        }
+      }
+
+      driveSync.setSyncId(rawVal);
+
+      if (btn) {
+        btn.innerHTML = '<span>Connecting & Syncing...</span>';
+        btn.disabled = true;
+      }
+
+      try {
+        const res = await driveSync.sync(true);
+        if (res.success) {
+          showToast('Connected and synced with partner! 🎉');
+          renderModalContent();
+        } else {
+          showToast(`Connection failed: ${driveSync.lastError || 'Unknown error'}`);
+          if (btn) {
+            btn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>Connect & Sync with Partner</span>`;
+            btn.disabled = false;
+          }
+        }
+      } catch (err) {
+        showToast(`Connection failed: ${err.message}`);
+        if (btn) {
+          btn.innerHTML = `<svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg><span>Connect & Sync with Partner</span>`;
+          btn.disabled = false;
+        }
+      }
+    });
+
+    // Save custom client ID
+    document.getElementById('btn-save-custom-client-id')?.addEventListener('click', () => {
+      const customIdInput = document.getElementById('collab-custom-client-id');
+      const val = customIdInput?.value?.trim() || '';
+      driveSync.setCustomClientId(val);
+      showToast('Client ID saved ✓');
+    });
+  }
+
+  renderModalContent();
+  overlay.classList.add('active');
 }
 
 // ==================== EXPORT & IMPORT MODALS ====================
@@ -1980,6 +2401,7 @@ function openEditProfileModal(targetBabyId) {
     if (!name || !dob) { showToast('Please fill all fields'); return; }
 
     updateProfile(baby.id, { name, dob });
+    driveSync.queueSync();
     closeModal();
     if (currentView === 'manage-babies') {
       renderManageBabies();
@@ -1993,6 +2415,7 @@ function openEditProfileModal(targetBabyId) {
 function confirmDeleteBaby(baby) {
   showConfirm('Delete Baby', `Are you sure you want to delete ${baby.name} and all their logged activities? This cannot be undone!`, async () => {
     deleteProfile(baby.id);
+    driveSync.queueSync();
     const remaining = getProfiles();
     if (remaining.length > 0) {
       const settings = getSettings();

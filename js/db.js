@@ -91,10 +91,54 @@ export async function updateActivity(entry) {
   });
 }
 
+const TOMBSTONES_KEY = 'babylogs_tombstones';
+
 /**
- * Delete an activity by ID
+ * Get all deletion tombstones
+ * Returns: { [id]: { type: 'activity'|'profile', deletedAt: string } }
  */
-export async function deleteActivity(id) {
+export function getDeletedTombstones() {
+  try {
+    const data = localStorage.getItem(TOMBSTONES_KEY);
+    return data ? JSON.parse(data) : {};
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Record a deletion tombstone with timestamp
+ */
+export function recordDeletedTombstone(id, type = 'activity') {
+  if (!id) return;
+  const tombstones = getDeletedTombstones();
+  tombstones[id] = {
+    type,
+    deletedAt: new Date().toISOString()
+  };
+  // Cap tombstones list to latest 1000 items to keep storage compact
+  const keys = Object.keys(tombstones);
+  if (keys.length > 1000) {
+    const oldestKeys = keys.slice(0, keys.length - 1000);
+    for (const k of oldestKeys) delete tombstones[k];
+  }
+  localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(tombstones));
+}
+
+/**
+ * Clear or prune tombstones
+ */
+export function clearDeletedTombstones() {
+  localStorage.removeItem(TOMBSTONES_KEY);
+}
+
+/**
+ * Delete an activity by ID (records a tombstone by default for sync)
+ */
+export async function deleteActivity(id, recordTombstone = true) {
+  if (recordTombstone) {
+    recordDeletedTombstone(id, 'activity');
+  }
   const db = await openDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
@@ -292,7 +336,10 @@ export function updateProfile(id, updates) {
 /**
  * Delete a baby profile
  */
-export function deleteProfile(id) {
+export function deleteProfile(id, recordTombstone = true) {
+  if (recordTombstone) {
+    recordDeletedTombstone(id, 'profile');
+  }
   const profiles = getProfiles().filter(p => p.id !== id);
   saveProfiles(profiles);
 }
