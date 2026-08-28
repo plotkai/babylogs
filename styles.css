@@ -1028,6 +1028,7 @@ body {
 .form-group__select,
 .form-group__textarea {
   width: 100%;
+  min-height: 48px;
   padding: 10px 14px;
   font-size: 15px;
   font-family: var(--font-body);
@@ -1039,6 +1040,41 @@ body {
   outline: none;
   appearance: none;
   -webkit-appearance: none;
+  box-sizing: border-box;
+}
+
+/* Fix iOS Safari & Android date/time input height collapse */
+input[type="date"].form-group__input,
+input[type="time"].form-group__input,
+input[type="datetime-local"].form-group__input {
+  min-height: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+}
+
+input[type="date"].form-group__input::-webkit-date-and-time-value,
+input[type="time"].form-group__input::-webkit-date-and-time-value,
+input[type="datetime-local"].form-group__input::-webkit-date-and-time-value {
+  text-align: left;
+  min-height: 1.4em;
+  line-height: normal;
+  display: flex;
+  align-items: center;
+}
+
+input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.65;
+  filter: invert(0.5);
+  padding: 4px;
+  margin-right: -4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
+    filter: invert(0.85);
+  }
 }
 
 .form-group__input:focus,

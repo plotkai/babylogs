@@ -284,7 +284,7 @@ function renderWelcome() {
         </div>
         <div class="form-group">
           <label class="form-group__label">Date of Birth</label>
-          <input type="date" class="form-group__input" id="welcome-dob" required max="${formatDateKey(new Date())}">
+          <input type="date" class="form-group__input" id="welcome-dob" required max="${formatDateKey(new Date())}" value="${formatDateKey(new Date())}">
         </div>
         <div class="welcome__cta">
           <button type="submit" class="btn btn--primary btn--full">Get Started 🚀</button>
@@ -1514,7 +1514,7 @@ function openAddBabyModal() {
     </div>
     <div class="form-group">
       <label class="form-group__label">Date of Birth</label>
-      <input type="date" class="form-group__input" id="add-baby-dob" required max="${formatDateKey(new Date())}">
+      <input type="date" class="form-group__input" id="add-baby-dob" required max="${formatDateKey(new Date())}" value="${formatDateKey(new Date())}">
     </div>
   `;
 
