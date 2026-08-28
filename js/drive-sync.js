@@ -159,6 +159,13 @@ class DriveSyncManager {
       return this.accessToken;
     }
 
+    // If in background without user interaction and token is expired/missing, fail gracefully
+    if (!promptExplicit) {
+      const err = new Error('Google session expired. Tap Collaborate to re-authenticate.');
+      err.code = 'AUTH_REQUIRED';
+      throw err;
+    }
+
     const client = await this.ensureTokenClient();
 
     return new Promise((resolve, reject) => {
@@ -190,16 +197,16 @@ class DriveSyncManager {
           expiresAt: this.tokenExpiresAt
         }));
 
-        // Fetch user profile info
+        // Fetch user profile info in background
         this.fetchUserProfile().catch(e => console.debug('Profile fetch deferred:', e));
 
         resolve(this.accessToken);
       };
 
-      // Trigger OAuth popup
+      // Trigger OAuth popup on user gesture
       try {
         client.requestAccessToken({
-          prompt: promptExplicit ? 'consent select_account' : ''
+          prompt: 'select_account'
         });
       } catch (err) {
         reject(err);
