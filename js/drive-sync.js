@@ -863,6 +863,25 @@ class DriveSyncManager {
       isOutOfSync = true;
     }
 
+    let tokenStatusText = '';
+    let tokenRemainingMinutes = 0;
+    let tokenExpiredAgoMinutes = 0;
+
+    if (this.tokenExpiresAt > 0) {
+      if (this.tokenExpiresAt > now) {
+        tokenRemainingMinutes = Math.max(1, Math.round((this.tokenExpiresAt - now) / 60000));
+        tokenStatusText = `Live for ~${tokenRemainingMinutes}m`;
+      } else {
+        tokenExpiredAgoMinutes = Math.max(1, Math.round((now - this.tokenExpiresAt) / 60000));
+        if (tokenExpiredAgoMinutes < 60) {
+          tokenStatusText = `Expired ${tokenExpiredAgoMinutes}m ago`;
+        } else {
+          const hrs = Math.floor(tokenExpiredAgoMinutes / 60);
+          tokenStatusText = `Expired ${hrs}h ago`;
+        }
+      }
+    }
+
     return {
       hasSyncId,
       state,
@@ -871,6 +890,10 @@ class DriveSyncManager {
       lastSyncTime,
       timeAgoText,
       timeAgoMinutes,
+      tokenExpiresAt: this.tokenExpiresAt,
+      tokenStatusText,
+      tokenRemainingMinutes,
+      tokenExpiredAgoMinutes,
       error: this.lastError
     };
   }

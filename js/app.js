@@ -946,11 +946,11 @@ async function loadTimeline() {
       const act = chronological[i];
       timelineItems.push({ type: 'activity', data: act });
 
-      const actEndTime = act.endTime 
-        ? new Date(act.endTime).getTime() 
-        : (act.duration > 0 
-            ? calculateEndTime(act.startTime, act.duration).getTime() 
-            : new Date(act.startTime).getTime());
+      const actEndTime = act.endTime
+        ? new Date(act.endTime).getTime()
+        : (act.duration > 0
+          ? calculateEndTime(act.startTime, act.duration).getTime()
+          : new Date(act.startTime).getTime());
 
       if (i < chronological.length - 1) {
         const nextAct = chronological[i + 1];
@@ -1170,7 +1170,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
     : (presetStartTime || `${formatDateKey(currentDate)}T${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
 
   let selectedType = activity ? activity.eventType : (presetType || 'breast_feed');
-  
+
   // Find which category contains selectedType (default to 'feeding')
   let selectedCategory = 'feeding';
   for (const [catKey, cat] of Object.entries(categories)) {
@@ -1276,11 +1276,11 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
   function updateSelectedEventCard(typeKey) {
     const typeConfig = getActivityType(typeKey);
     if (!typeConfig) return;
-    
+
     document.getElementById('selected-event-emoji').textContent = typeConfig.emoji || '📝';
     document.getElementById('selected-event-name').textContent = typeConfig.label;
     document.getElementById('selected-event-category').textContent = `${typeConfig.categoryIcon || ''} ${typeConfig.categoryLabel || ''} Category`;
-    
+
     // Update active category tab
     selectedCategory = typeConfig.category || 'feeding';
     document.querySelectorAll('.event-category-tab').forEach(t => {
@@ -1508,8 +1508,8 @@ function renderDynamicFields(eventType, existingValues = {}) {
     }
 
     if (field.type === 'checkbox') {
-      const isChecked = (value !== undefined && value !== '') 
-        ? Boolean(value) 
+      const isChecked = (value !== undefined && value !== '')
+        ? Boolean(value)
         : (field.default !== undefined ? Boolean(field.default) : false);
       return `
         <div class="form-group form-group--checkbox">
@@ -1898,16 +1898,14 @@ function openCollabModal(initialTab = 'auto') {
     let statusBadgeHtml = '';
     if (driveSync.status === 'syncing') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--syncing">🔄 Syncing...</span>`;
-    } else if (syncInfo.state === 'auth_required') {
-      statusBadgeHtml = `<span class="collab-status-badge" style="background: rgba(243, 156, 18, 0.15); color: #E67E22;">⚠️ Out of Sync</span>`;
-    } else if (driveSync.status === 'synced') {
+    } else if (hasSyncId && syncInfo.state === 'auth_required') {
+      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--warning">⚠️ Out of Sync</span>`;
+    } else if (hasSyncId && driveSync.status === 'synced') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--synced">✓ Synced</span>`;
-    } else if (driveSync.status === 'error') {
+    } else if (hasSyncId && driveSync.status === 'error') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--error">⚠️ Sync Error</span>`;
-    } else if (driveSync.status === 'offline') {
+    } else if (hasSyncId && driveSync.status === 'offline') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--offline">📵 Offline</span>`;
-    } else {
-      statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--idle">Ready</span>`;
     }
 
     body.innerHTML = `
@@ -1938,34 +1936,44 @@ function openCollabModal(initialTab = 'auto') {
 
             ${syncInfo.isOutOfSync && syncInfo.state === 'auth_required' ? `
               <div class="collab-alert-box collab-alert-box--warning">
-                <div style="font-size: 16px; margin-top: 1px;">⚠️</div>
+                <div style="font-size: 18px; margin-top: 1px;">⚠️</div>
                 <div>
-                  <strong>Session Expired (Out of Sync)</strong>
-                  <span>Google security expires client tokens after 60 minutes. Tap <strong>Sync Now</strong> below to sign in and catch up with your partner.</span>
+                  <strong>Session Expired (${syncInfo.tokenStatusText || 'Needs Sync'})</strong>
+                  <span>Google security expires client tokens after 60 minutes. Tap <strong>Sync Now</strong> below to catch up with your partner.</span>
                 </div>
               </div>
-            ` : ''}
+            ` : (syncInfo.tokenStatusText ? `
+              <div class="collab-session-pill collab-session-pill--active">
+                <span>🟢</span>
+                <span>Session Active • Token <strong>${syncInfo.tokenStatusText}</strong></span>
+              </div>
+            ` : '')}
 
-            <div class="collab-tip-box" style="margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
+            <!-- Big Centered Prominent Sync Now Button -->
+            <div class="collab-sync-now-wrap">
+              <button class="btn btn--primary collab-sync-now-btn" id="btn-collab-sync-now">
+                <span style="font-size: 18px;">🔄</span>
+                <span>Sync Now</span>
+              </button>
+            </div>
+
+            <div class="collab-tip-box" style="margin-bottom: 8px; font-size: 12px; line-height: 1.5;">
               👶 <strong>Active Baby:</strong> ${activeBaby ? activeBaby.name : 'None selected'}<br>
               📊 <strong>Synced Profiles:</strong> ${profiles.length} baby profile(s)
             </div>
 
             <div class="form-group" style="margin-bottom: 0;">
-              <label class="form-group__label" style="font-size: 11px;">Invite Link (Share with Partner)</label>
+              <label class="form-group__label" style="font-size: 11px;">Partner Invite Link</label>
               <div class="collab-link-box">
                 <input type="text" class="collab-link-text" id="collab-invite-input" value="${inviteLink}" readonly>
                 <button class="btn-copy" id="btn-collab-copy">📋 Copy</button>
               </div>
             </div>
 
-            <div class="collab-actions-row">
-              <button class="btn btn--secondary btn--sm" id="btn-collab-share-native">📲 Share Link</button>
-              <button class="btn btn--primary btn--sm" id="btn-collab-sync-now">🔄 Sync Now</button>
-            </div>
+            <button class="btn btn--secondary btn--sm btn--full" id="btn-collab-share-native" style="margin-top: 4px;">📲 Share Link</button>
 
             <div class="collab-meta-row">
-              <span>Last Synced: <strong>${syncInfo.timeAgoText}</strong> ${syncInfo.isOutOfSync ? '<span style="color:var(--color-danger);font-size:11px;margin-left:4px;">(Out of Sync)</span>' : '<span style="color:var(--color-success);font-size:11px;margin-left:4px;">(Up to date ✓)</span>'}</span>
+              <span>Last Synced: <strong>${syncInfo.timeAgoText}</strong></span>
               <button class="btn-text" id="btn-collab-unlink" style="color: var(--color-danger); font-size: 12px; cursor: pointer; background: none; border: none; font-weight: 600;">Disconnect</button>
             </div>
           </div>
@@ -1983,34 +1991,44 @@ function openCollabModal(initialTab = 'auto') {
           ${activeTab === 'start' ? `
             <!-- CREATOR FLOW -->
             <div class="collab-card">
-              <div class="collab-card__title">👶 Share Your Baby's Log</div>
-              <div class="collab-card__desc">
-                Creates a secure, private <code>babylogs_store.json</code> in your Google Drive and generates an invite QR code & link for your partner.
+              <div class="collab-card__title">
+                <span>👶</span>
+                <span>Sync & Share Baby Log</span>
+              </div>
+              <p class="collab-card__desc">
+                Keep feeds, diapers, and sleep seamlessly in sync between both parents in real-time.
+              </p>
+
+              <div class="collab-security-banner">
+                <div class="collab-security-icon">🛡️</div>
+                <div class="collab-security-text">
+                  <strong>100% Private & In Your Control</strong>
+                  <span>Your data stays in your personal Google Drive with zero intermediate servers. Only you and your partner have access.</span>
+                </div>
               </div>
 
-              <div class="collab-tip-box">
-                🔒 <strong>Zero Custom Servers:</strong> Your data is stored directly in your Google Drive using the narrow <code>drive.file</code> scope.
-              </div>
-
-              <button class="btn btn-google" id="btn-collab-create-drive">
+              <button class="btn btn-google btn--full" id="btn-collab-create-drive" style="margin-top: 6px; padding: 13px 18px;">
                 <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
-                <span>Connect Google & Create Cloud Log</span>
+                <span>Connect Google & Start Sync</span>
               </button>
             </div>
           ` : `
             <!-- JOINER FLOW -->
             <div class="collab-card">
-              <div class="collab-card__title">🤝 Join Partner's Baby Log</div>
-              <div class="collab-card__desc">
-                Paste the invite link or File ID shared by your partner to connect and sync your logs.
+              <div class="collab-card__title">
+                <span>🤝</span>
+                <span>Join Partner's Baby Log</span>
               </div>
+              <p class="collab-card__desc">
+                Paste the invite link or Sync ID shared by your partner to connect and sync your logs.
+              </p>
 
-              <div class="form-group">
+              <div class="form-group" style="margin-top: 4px;">
                 <label class="form-group__label">Sync ID or Invite Link</label>
                 <input type="text" class="form-group__input" id="collab-join-input" placeholder="Paste link or Sync ID..." value="${driveSync.getSyncId() || ''}">
               </div>
 
-              <button class="btn btn-google" id="btn-collab-join-submit">
+              <button class="btn btn-google btn--full" id="btn-collab-join-submit" style="margin-top: 6px; padding: 13px 18px;">
                 <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/></svg>
                 <span>Connect & Sync with Partner</span>
               </button>
@@ -2587,9 +2605,9 @@ function renderManageBabies() {
 
       <div class="manage-babies__list">
         ${profiles.map(baby => {
-          const isActive = baby.id === settings.activeBabyId;
-          const dobFormatted = formatDateDisplay(new Date(baby.dob + 'T12:00:00'));
-          return `
+    const isActive = baby.id === settings.activeBabyId;
+    const dobFormatted = formatDateDisplay(new Date(baby.dob + 'T12:00:00'));
+    return `
             <div class="baby-card ${isActive ? 'baby-card--active' : ''}">
               <div class="baby-card__top">
                 <div class="baby-card__avatar">${baby.name.charAt(0).toUpperCase()}</div>
@@ -2608,7 +2626,7 @@ function renderManageBabies() {
               </div>
             </div>
           `;
-        }).join('')}
+  }).join('')}
       </div>
     </div>
 
@@ -3060,19 +3078,17 @@ async function loadSummaryData(period) {
             <div class="summary__stat-label">Latest Weight</div>
           </div>
           <div class="summary__stat">
-            <div class="summary__stat-value" style="color: ${
-              summary.healthCare.weightChecks.length > 1
-                ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0
-                    ? 'var(--color-success)'
-                    : 'var(--color-danger)')
-                : 'var(--color-text)'
-            };">
-              ${
-                summary.healthCare.weightChecks.length > 1
-                  ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0 ? '+' : '') +
-                    (Math.round((summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value) * 100) / 100) + ' ' + (settings.unit?.weight || 'kg')
-                  : '—'
-              }
+            <div class="summary__stat-value" style="color: ${summary.healthCare.weightChecks.length > 1
+          ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0
+            ? 'var(--color-success)'
+            : 'var(--color-danger)')
+          : 'var(--color-text)'
+        };">
+              ${summary.healthCare.weightChecks.length > 1
+          ? (summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value >= 0 ? '+' : '') +
+          (Math.round((summary.healthCare.weightChecks[summary.healthCare.weightChecks.length - 1].value - summary.healthCare.weightChecks[0].value) * 100) / 100) + ' ' + (settings.unit?.weight || 'kg')
+          : '—'
+        }
             </div>
             <div class="summary__stat-label">Trajectory Change</div>
           </div>
@@ -3277,8 +3293,8 @@ function renderSettings() {
             ${cat.icon} ${cat.label}
           </div>
           ${Object.entries(cat.types).map(([typeKey, type]) => {
-            const currentDur = getActivityDefaultDuration(typeKey, settings);
-            return `
+    const currentDur = getActivityDefaultDuration(typeKey, settings);
+    return `
               <div class="settings__row">
                 <span class="settings__row-label" style="display: flex; align-items: center; gap: 8px;">
                   <span style="font-size: 16px;">${type.emoji || '📝'}</span>
@@ -3298,7 +3314,7 @@ function renderSettings() {
                 </div>
               </div>
             `;
-          }).join('')}
+  }).join('')}
         `).join('')}
       </div>
 
