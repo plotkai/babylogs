@@ -184,7 +184,9 @@ function renderWelcome() {
 
   app.innerHTML = `
     <div class="welcome" id="welcome-screen">
-      <div class="welcome__logo">👶</div>
+      <div class="welcome__logo">
+        <img src="./icons/icon-192.png" alt="Babylogs" class="welcome__icon-img" width="88" height="88">
+      </div>
       <h1 class="welcome__title">
         <span class="welcome__title-main">Babylogs</span>
         <span class="welcome__title-sub">by Plotkai</span>

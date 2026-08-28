@@ -1769,19 +1769,29 @@ body {
   justify-content: center;
   padding: calc(40px + var(--safe-top)) 24px calc(40px + var(--safe-bottom));
   text-align: center;
-  background: linear-gradient(160deg, var(--color-primary) 0%, #2D1050 50%, #1A0A35 100%);
-  color: #FFFFFF;
+  background: radial-gradient(circle at 50% 12%, rgba(155, 109, 255, 0.16) 0%, transparent 55%), var(--color-bg);
+  color: var(--color-text);
 }
 
 .welcome__logo {
-  font-size: 64px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.welcome__icon-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 22px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 24px rgba(155, 109, 255, 0.25);
   animation: float 3s ease-in-out infinite;
+  display: block;
 }
 
 .welcome__title {
   font-family: var(--font-heading);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1790,21 +1800,23 @@ body {
 }
 
 .welcome__title-main {
-  font-size: 34px;
+  font-size: 32px;
   font-weight: 700;
+  color: var(--color-text);
 }
 
 .welcome__title-sub {
   font-size: 13px;
-  font-weight: 400;
-  opacity: 0.75;
+  font-weight: 500;
+  color: var(--color-text-muted);
   margin-top: 2px;
 }
 
 .welcome__subtitle {
-  font-size: 15px;
-  color: rgba(255, 255, 255, 0.7);
-  margin-bottom: 40px;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin-bottom: 32px;
+  max-width: 320px;
 }
 
 .welcome__form {
@@ -1813,23 +1825,23 @@ body {
 }
 
 .welcome .form-group__label {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--color-text-secondary);
   text-align: left;
 }
 
 .welcome .form-group__input {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.2);
-  color: #FFFFFF;
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
 }
 
 .welcome .form-group__input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--color-text-muted);
 }
 
 .welcome .form-group__input:focus {
-  border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(255, 128, 0, 0.25);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(155, 109, 255, 0.25);
 }
 
 .welcome__cta {
@@ -1847,7 +1859,7 @@ body {
 .welcome__divider::after {
   content: '';
   flex: 1;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.18);
+  border-bottom: 1px solid var(--color-border);
 }
 
 .welcome__divider span {
@@ -1855,7 +1867,7 @@ body {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--color-text-muted);
   text-transform: uppercase;
 }
 
@@ -1867,52 +1879,54 @@ body {
 }
 
 .welcome__collab-btn {
-  background: rgba(255, 255, 255, 0.12);
-  color: #FFFFFF;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
   font-size: 14px;
   padding: 10px 16px;
+  border-radius: var(--radius-md);
   transition: all var(--transition-fast);
 }
 
 .welcome__collab-btn:hover {
-  background: rgba(255, 255, 255, 0.22);
-  border-color: rgba(255, 255, 255, 0.45);
+  background: var(--color-surface-alt);
+  border-color: var(--color-primary);
   transform: translateY(-1px);
 }
 
 .welcome__import-btn {
   background: transparent;
-  color: rgba(255, 255, 255, 0.7);
-  border: 1px dashed rgba(255, 255, 255, 0.25);
+  color: var(--color-text-secondary);
+  border: 1px dashed var(--color-border);
   font-size: 13px;
-  padding: 8px 14px;
+  padding: 9px 14px;
   border-radius: var(--radius-md);
   transition: all var(--transition-fast);
   cursor: pointer;
 }
 
 .welcome__import-btn:hover {
-  color: #FFFFFF;
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.45);
+  color: var(--color-text);
+  background: var(--color-surface-alt);
+  border-color: var(--color-primary);
 }
 
 .welcome__install-btn {
   margin-top: 14px;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: var(--color-surface-alt);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .welcome__install-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  color: var(--color-text);
+  background: var(--color-surface);
+  border-color: var(--color-primary);
 }
 
 /* ==================== SIDEBAR / HAMBURGER MENU ==================== */
