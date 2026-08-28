@@ -462,6 +462,9 @@ async function renderMain() {
         <button class="timeline-filter-bar__clear ${currentEventFilter ? '' : 'hidden'}" id="timeline-filter-clear" aria-label="Clear filter" title="Clear filter">✕</button>
       </div>
 
+      <!-- Timeline Filter Summary Card Slot -->
+      <div id="timeline-filter-summary-slot"></div>
+
       <!-- Timeline -->
       <div class="timeline" id="timeline"></div>
 
@@ -640,6 +643,223 @@ function updateDateLabel() {
   });
 }
 
+// ==================== TIMELINE FILTER SUMMARY ====================
+
+/**
+ * Render a compact summary card when an activity filter is active on timeline
+ */
+function renderTimelineFilterSummary(activities, eventType) {
+  const container = document.getElementById('timeline-filter-summary-slot');
+  if (!container) return;
+
+  if (!eventType || activities.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const typeConfig = getActivityType(eventType) || {};
+  const settings = getSettings();
+  const count = activities.length;
+
+  let totalDurationMins = 0;
+  let durations = [];
+  let totalVolume = 0;
+  let volumeUnit = settings.unit === 'imperial' ? 'oz' : 'ml';
+  let hasVolume = false;
+
+  // Diaper counts
+  let wetCount = 0;
+  let poopCount = 0;
+  let dryCount = 0;
+
+  // Breast feed counts
+  let leftCount = 0;
+  let rightCount = 0;
+  let bothCount = 0;
+
+  activities.forEach(act => {
+    // Duration
+    let dur = 0;
+    if (act.duration !== undefined && act.duration !== null) {
+      dur = Number(act.duration) || 0;
+    } else if (act.startTime && act.endTime) {
+      dur = Math.max(0, Math.round((new Date(act.endTime) - new Date(act.startTime)) / 60000));
+    }
+    if (dur > 0) {
+      totalDurationMins += dur;
+      durations.push(dur);
+    }
+
+    // Volume / Amount
+    if (act.amount !== undefined && act.amount !== null && !isNaN(Number(act.amount))) {
+      totalVolume += Number(act.amount);
+      hasVolume = true;
+    } else if (act.volume !== undefined && act.volume !== null && !isNaN(Number(act.volume))) {
+      totalVolume += Number(act.volume);
+      hasVolume = true;
+    }
+
+    // Breast feed sides
+    if (act.side) {
+      const s = String(act.side).toLowerCase();
+      if (s === 'left') leftCount++;
+      else if (s === 'right') rightCount++;
+      else if (s === 'both') bothCount++;
+    }
+
+    // Diaper types
+    if (act.diaperType) {
+      const dt = Array.isArray(act.diaperType) ? act.diaperType : [act.diaperType];
+      dt.forEach(t => {
+        const lower = String(t).toLowerCase();
+        if (lower.includes('wet')) wetCount++;
+        if (lower.includes('soiled') || lower.includes('poop') || lower.includes('dirty') || lower.includes('bm')) poopCount++;
+        if (lower.includes('dry')) dryCount++;
+      });
+    }
+  });
+
+  const avgDurationMins = durations.length > 0 ? Math.round(totalDurationMins / durations.length) : 0;
+  const maxDurationMins = durations.length > 0 ? Math.max(...durations) : 0;
+
+  let itemsHtml = '';
+  let subHtml = '';
+
+  if (eventType === 'sleep') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Nap' : 'Naps'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(totalDurationMins) || '0m'}</div>
+        <div class="timeline-filter-summary__label">Total Sleep</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(avgDurationMins) || '0m'}</div>
+        <div class="timeline-filter-summary__label">Avg / Nap</div>
+      </div>
+    `;
+    if (maxDurationMins > 0) {
+      subHtml = `
+        <span>Longest nap: <strong>${formatDuration(maxDurationMins)}</strong></span>
+        <span>Latest: <strong>${formatTime(activities[0].startTime)}</strong></span>
+      `;
+    }
+  } else if (eventType === 'diaper') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">Total Changes</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value" style="color: var(--color-secondary);">${wetCount}</div>
+        <div class="timeline-filter-summary__label">💧 Wet</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value" style="color: var(--color-accent);">${poopCount}</div>
+        <div class="timeline-filter-summary__label">💩 Poop</div>
+      </div>
+    `;
+    if (dryCount > 0) {
+      subHtml = `<span>Dry checks: <strong>${dryCount}</strong></span>`;
+    }
+  } else if (eventType === 'breast_feed') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Feed' : 'Feeds'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(totalDurationMins) || '0m'}</div>
+        <div class="timeline-filter-summary__label">Total Nursing</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(avgDurationMins) || '0m'}</div>
+        <div class="timeline-filter-summary__label">Avg / Feed</div>
+      </div>
+    `;
+    if (leftCount > 0 || rightCount > 0 || bothCount > 0) {
+      subHtml = `
+        <span>Sides: <strong>L: ${leftCount}</strong> • <strong>R: ${rightCount}</strong>${bothCount ? ` • <strong>Both: ${bothCount}</strong>` : ''}</span>
+      `;
+    }
+  } else if (eventType === 'bottle_feed') {
+    const avgVol = count > 0 && hasVolume ? Math.round(totalVolume / count) : 0;
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Bottle' : 'Bottles'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${hasVolume ? `${totalVolume} <span style="font-size:11px;">${volumeUnit}</span>` : formatDuration(totalDurationMins)}</div>
+        <div class="timeline-filter-summary__label">${hasVolume ? 'Total Volume' : 'Total Time'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${hasVolume ? `${avgVol} <span style="font-size:11px;">${volumeUnit}</span>` : formatDuration(avgDurationMins)}</div>
+        <div class="timeline-filter-summary__label">${hasVolume ? 'Avg / Bottle' : 'Avg Time'}</div>
+      </div>
+    `;
+  } else if (eventType === 'pumping') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">Sessions</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${hasVolume ? `${totalVolume} <span style="font-size:11px;">${volumeUnit}</span>` : formatDuration(totalDurationMins)}</div>
+        <div class="timeline-filter-summary__label">${hasVolume ? 'Total Pumped' : 'Total Time'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(totalDurationMins) || '0m'}</div>
+        <div class="timeline-filter-summary__label">Duration</div>
+      </div>
+    `;
+  } else if (totalDurationMins > 0) {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">Sessions</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(totalDurationMins)}</div>
+        <div class="timeline-filter-summary__label">Total Time</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatDuration(avgDurationMins)}</div>
+        <div class="timeline-filter-summary__label">Avg / Session</div>
+      </div>
+    `;
+  } else {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${count}</div>
+        <div class="timeline-filter-summary__label">Total Entries</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatTime(activities[0].startTime)}</div>
+        <div class="timeline-filter-summary__label">Latest Entry</div>
+      </div>
+    `;
+  }
+
+  container.innerHTML = `
+    <div class="timeline-filter-summary">
+      <div class="timeline-filter-summary__header">
+        <span class="timeline-filter-summary__title">
+          <span>${typeConfig.emoji || '⚡'}</span>
+          <span>${typeConfig.label || 'Activity'} Daily Summary</span>
+        </span>
+        <span class="timeline-filter-summary__badge">${count} logged</span>
+      </div>
+      <div class="timeline-filter-summary__grid">
+        ${itemsHtml}
+      </div>
+      ${subHtml ? `<div class="timeline-filter-summary__sub">${subHtml}</div>` : ''}
+    </div>
+  `;
+}
+
 // ==================== TIMELINE ====================
 
 async function loadTimeline() {
@@ -651,6 +871,7 @@ async function loadTimeline() {
   if (!timeline) return;
 
   if (currentActivities.length === 0) {
+    renderTimelineFilterSummary([], '');
     timeline.innerHTML = `
       <div class="timeline__empty">
         <div class="timeline__empty-icon">📝</div>
@@ -678,6 +899,9 @@ async function loadTimeline() {
   const displayActivities = currentEventFilter
     ? currentActivities.filter(a => a.eventType === currentEventFilter)
     : currentActivities;
+
+  // Render or clear the filter summary card
+  renderTimelineFilterSummary(displayActivities, currentEventFilter);
 
   if (displayActivities.length === 0) {
     const typeConfig = getActivityType(currentEventFilter) || {};
