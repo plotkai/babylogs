@@ -203,8 +203,22 @@ function renderWelcome() {
         <div class="welcome__cta">
           <button type="submit" class="btn btn--primary btn--full">Get Started 🚀</button>
         </div>
+
+        <div class="welcome__divider">
+          <span>or join existing log</span>
+        </div>
+
+        <div class="welcome__alt-actions">
+          <button type="button" class="btn welcome__collab-btn btn--full" id="welcome-collab-btn">
+            🤝 Collaborate / Join Partner
+          </button>
+          <button type="button" class="welcome__import-btn btn--full" id="welcome-import-btn">
+            📥 Restore from Backup File
+          </button>
+        </div>
+
         ${!window.matchMedia('(display-mode: standalone)').matches ? `
-        <button type="button" class="btn welcome__install-btn btn--full" id="welcome-install-btn" style="margin-top: 10px;">
+        <button type="button" class="btn welcome__install-btn btn--full" id="welcome-install-btn" style="margin-top: 14px;">
           📲 Install App
         </button>
         ` : ''}
@@ -235,6 +249,14 @@ function renderWelcome() {
   document.getElementById('modal-close')?.addEventListener('click', closeModal);
   document.getElementById('modal-overlay')?.addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeModal();
+  });
+
+  document.getElementById('welcome-collab-btn')?.addEventListener('click', () => {
+    openCollabModal('join');
+  });
+
+  document.getElementById('welcome-import-btn')?.addEventListener('click', () => {
+    openImportModal();
   });
 
   document.getElementById('welcome-form').addEventListener('submit', (e) => {
