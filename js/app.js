@@ -84,15 +84,21 @@ function initDriveSyncHooks() {
       updateSetting('activeBabyId', profiles[0].id);
     }
 
+    const modalOverlay = document.getElementById('modal-overlay');
+    const isModalOpen = modalOverlay && modalOverlay.classList.contains('active');
+
     // Reactive UI refresh when new changes sync in from partner
     if (currentView === 'welcome' && profiles.length > 0) {
       renderMain();
     } else if (currentView === 'main') {
-      renderMain();
+      // If modal is open, NEVER wipe DOM or close active logging modal!
+      loadTimeline();
+      updateLastFeedCard();
+      updateHeaderSyncIndicator();
     } else if (currentView === 'summary') {
-      renderSummary();
+      if (!isModalOpen) renderSummary();
     } else if (currentView === 'manage-babies') {
-      renderManageBabies();
+      if (!isModalOpen) renderManageBabies();
     }
 
     if (stats && (stats.newFromRemote > 0 || stats.updatedFromRemote > 0)) {

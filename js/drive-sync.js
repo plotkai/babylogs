@@ -639,6 +639,13 @@ class DriveSyncManager {
     };
   }
 
+  /**
+   * Check if current access token is still active and valid
+   */
+  isTokenValid() {
+    return !!(this.accessToken && this.tokenExpiresAt > Date.now() + 60000);
+  }
+
   // ==================== SYNC EXECUTION & ORCHESTRATION ====================
 
   /**
@@ -657,6 +664,13 @@ class DriveSyncManager {
     }
 
     if (this.isSyncing) return { success: false, reason: 'in_progress' };
+
+    // In background mode without explicit user click:
+    // If token is missing/expired, fail gracefully to 'auth_required' WITHOUT spinning the UI icon!
+    if (!promptExplicitAuth && !this.isTokenValid()) {
+      this.setStatus('auth_required');
+      return { success: false, reason: 'auth_required' };
+    }
 
     this.isSyncing = true;
     this.setStatus('syncing');
@@ -705,13 +719,15 @@ class DriveSyncManager {
       this.setStatus('synced');
       this.lastError = null;
 
-      // 6. Notify UI to refresh data views
-      this.notifyDataChanged(stats);
+      // 6. Notify UI ONLY when actual new/updated data arrived from remote
+      if (stats && (stats.newFromRemote > 0 || stats.updatedFromRemote > 0)) {
+        this.notifyDataChanged(stats);
+      }
 
       return { success: true, stats };
     } catch (err) {
       console.warn('Drive Sync Status:', err.message);
-      if (err.code === 'AUTH_ERROR' || err.status === 401 || err.rawError === 'access_denied') {
+      if (err.code === 'AUTH_ERROR' || err.code === 'AUTH_REQUIRED' || err.status === 401 || err.rawError === 'access_denied') {
         this.lastError = 'Session expired — tap Sync Now to sign in';
         this.setStatus('auth_required');
       } else {
@@ -746,7 +762,13 @@ class DriveSyncManager {
   initNetworkListeners() {
     window.addEventListener('online', () => {
       if (this.getSyncId()) {
-        this.sync(false);
+        const lastSync = this.getLastSyncTime();
+        const timeSinceLastSync = lastSync ? Date.now() - lastSync.getTime() : Infinity;
+        if (this.isTokenValid() && timeSinceLastSync >= 5 * 60 * 1000) {
+          this.sync(false).catch(() => {});
+        } else {
+          this.notifyStatusListeners();
+        }
       } else {
         this.setStatus('idle');
       }
@@ -758,16 +780,26 @@ class DriveSyncManager {
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible' && this.getSyncId()) {
-        this.sync(false);
+        const lastSync = this.getLastSyncTime();
+        const timeSinceLastSync = lastSync ? Date.now() - lastSync.getTime() : Infinity;
+        // Only run background sync if at least 5 minutes (300,000 ms) passed and token is valid
+        if (this.isTokenValid() && timeSinceLastSync >= 5 * 60 * 1000) {
+          this.sync(false).catch(() => {});
+        } else {
+          // Just refresh header indicators without spinning
+          this.notifyStatusListeners();
+        }
       }
     });
 
-    // Periodic heartbeat sync
+    // Periodic heartbeat sync (every 5 minutes)
     const config = getDriveSyncConfig();
     const intervalMinutes = config.autoSyncIntervalMinutes || 5;
     this.heartbeatTimer = setInterval(() => {
       if (document.visibilityState === 'visible' && this.getSyncId() && navigator.onLine) {
-        this.sync(false);
+        if (this.isTokenValid()) {
+          this.sync(false).catch(() => {});
+        }
       }
     }, intervalMinutes * 60 * 1000);
   }
