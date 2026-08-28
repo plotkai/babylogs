@@ -100,6 +100,16 @@ function initDriveSyncHooks() {
     }
   });
 
+  // Update title bar sync indicator on status changes
+  driveSync.onStatusChange(() => {
+    updateHeaderSyncIndicator();
+  });
+
+  // Periodically refresh relative time indicator in header (every 60s)
+  setInterval(() => {
+    updateHeaderSyncIndicator();
+  }, 60000);
+
   // If already connected with a syncId, run initial background sync
   if (driveSync.getSyncId() && navigator.onLine) {
     setTimeout(() => {
@@ -111,6 +121,74 @@ function initDriveSyncHooks() {
         }
       }).catch(err => console.debug('Initial sync deferred:', err));
     }, 1000);
+  }
+}
+
+/**
+ * Update the title bar Cloud Sync status icon (before analytics button)
+ */
+function updateHeaderSyncIndicator() {
+  const syncBtn = document.getElementById('header-sync-btn');
+  if (!syncBtn) return;
+
+  const info = driveSync.getEffectiveSyncState();
+  if (!info.hasSyncId) {
+    syncBtn.innerHTML = `
+      <div class="header__sync-icon-box" title="Collaborate & Sync (Connect Partner)">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65;">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
+      </div>
+    `;
+    syncBtn.title = 'Collaborate & Sync (Connect Partner)';
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--unlinked';
+    return;
+  }
+
+  if (info.state === 'syncing') {
+    syncBtn.innerHTML = `
+      <div class="header__sync-icon-box" title="Syncing with Google Drive...">
+        <svg class="header__sync-spin" width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
+        </svg>
+      </div>
+    `;
+    syncBtn.title = 'Syncing with Google Drive...';
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--syncing';
+  } else if (info.state === 'synced') {
+    syncBtn.innerHTML = `
+      <div class="header__sync-icon-box" title="Synced ${info.timeAgoText} • Cloud active">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
+        <span class="header__sync-dot header__sync-dot--green"></span>
+      </div>
+    `;
+    syncBtn.title = `Synced ${info.timeAgoText} • Cloud active`;
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--synced';
+  } else if (info.state === 'auth_required') {
+    syncBtn.innerHTML = `
+      <div class="header__sync-icon-box" title="Out of sync (${info.timeAgoText}) • Tap to sign in & sync">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+        </svg>
+        <span class="header__sync-dot header__sync-dot--amber"></span>
+      </div>
+    `;
+    syncBtn.title = `Out of sync (${info.timeAgoText}) • Tap to sign in & sync`;
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--warning';
+  } else {
+    syncBtn.innerHTML = `
+      <div class="header__sync-icon-box" title="Sync paused (${info.error || 'Offline'}) • Tap to retry">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF7675" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0-4 7 8 8 0 0 0 8 8h9a4.99 4.99 0 0 0 3.32-1.28"></path>
+          <line x1="1" y1="1" x2="23" y2="23" stroke="#FF7675" stroke-width="2"></line>
+        </svg>
+        <span class="header__sync-dot header__sync-dot--red"></span>
+      </div>
+    `;
+    syncBtn.title = `Sync paused (${info.error || 'Offline'}) • Tap to retry`;
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--error';
   }
 }
 
@@ -319,13 +397,17 @@ async function renderMain() {
         <span class="header__title-main">Babylogs</span>
         <span class="header__title-sub">by Plotkai</span>
       </span>
-      <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="20" x2="18" y2="10"></line>
-          <line x1="12" y1="20" x2="12" y2="4"></line>
-          <line x1="6" y1="20" x2="6" y2="14"></line>
-        </svg>
-      </button>
+      <div class="header__actions">
+        <button class="header__action-btn header__sync-btn" id="header-sync-btn" aria-label="Cloud Sync Status" title="Cloud Sync">
+        </button>
+        <button class="header__action-btn" id="analytics-btn" aria-label="Summary & Analytics" title="Summary & Analytics">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+        </button>
+      </div>
     </header>
 
     <div class="main-content">
@@ -525,6 +607,12 @@ function bindMainEvents() {
 
   // Baby switcher
   document.getElementById('baby-switcher-toggle').addEventListener('click', toggleBabySwitcher);
+
+  // Cloud Sync Status button
+  document.getElementById('header-sync-btn')?.addEventListener('click', () => {
+    openCollabModal();
+  });
+  updateHeaderSyncIndicator();
 
   // Analytics / Summary button
   document.getElementById('analytics-btn')?.addEventListener('click', renderSummary);
@@ -1581,10 +1669,10 @@ function openCollabModal(initialTab = 'auto') {
 
   function renderModalContent() {
     const hasSyncId = !!driveSync.getSyncId();
-    const isAuth = !!(driveSync.accessToken && driveSync.tokenExpiresAt > Date.now());
+    const syncInfo = driveSync.getEffectiveSyncState();
+    const isAuth = syncInfo.isTokenValid;
     const inviteLink = driveSync.getInviteLink();
     const qrSvg = inviteLink ? generateQRCodeSVG(inviteLink, { size: 170 }) : '';
-    const lastSyncTime = driveSync.getLastSyncTime();
     const profiles = getProfiles();
     const settings = getSettings();
     const activeBaby = profiles.find(p => p.id === settings.activeBabyId) || profiles[0];
@@ -1592,25 +1680,16 @@ function openCollabModal(initialTab = 'auto') {
     let statusBadgeHtml = '';
     if (driveSync.status === 'syncing') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--syncing">🔄 Syncing...</span>`;
+    } else if (syncInfo.state === 'auth_required') {
+      statusBadgeHtml = `<span class="collab-status-badge" style="background: rgba(243, 156, 18, 0.15); color: #E67E22;">⚠️ Out of Sync</span>`;
     } else if (driveSync.status === 'synced') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--synced">✓ Synced</span>`;
-    } else if (driveSync.status === 'auth_required') {
-      statusBadgeHtml = `<span class="collab-status-badge" style="background: rgba(243, 156, 18, 0.15); color: #E67E22;">🔑 Sign-in Required</span>`;
     } else if (driveSync.status === 'error') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--error">⚠️ Sync Error</span>`;
     } else if (driveSync.status === 'offline') {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--offline">📵 Offline</span>`;
     } else {
       statusBadgeHtml = `<span class="collab-status-badge collab-status-badge--idle">Ready</span>`;
-    }
-
-    let timeAgoText = 'Never';
-    if (lastSyncTime) {
-      const diffMs = Date.now() - lastSyncTime.getTime();
-      const diffMins = Math.floor(diffMs / 60000);
-      if (diffMins < 1) timeAgoText = 'Just now';
-      else if (diffMins < 60) timeAgoText = `${diffMins}m ago`;
-      else timeAgoText = lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     body.innerHTML = `
@@ -1639,6 +1718,16 @@ function openCollabModal(initialTab = 'auto') {
               All logs (feeds, diapers, sleep) sync automatically between you and your partner with offline support.
             </p>
 
+            ${syncInfo.isOutOfSync && syncInfo.state === 'auth_required' ? `
+              <div class="collab-alert-box collab-alert-box--warning">
+                <div style="font-size: 16px; margin-top: 1px;">⚠️</div>
+                <div>
+                  <strong>Session Expired (Out of Sync)</strong>
+                  <span>Google security expires client tokens after 60 minutes. Tap <strong>Sync Now</strong> below to sign in and catch up with your partner.</span>
+                </div>
+              </div>
+            ` : ''}
+
             <div class="collab-tip-box" style="margin-bottom: 12px; font-size: 12px; line-height: 1.5;">
               👶 <strong>Active Baby:</strong> ${activeBaby ? activeBaby.name : 'None selected'}<br>
               📊 <strong>Synced Profiles:</strong> ${profiles.length} baby profile(s)
@@ -1664,7 +1753,7 @@ function openCollabModal(initialTab = 'auto') {
             </div>
 
             <div class="collab-meta-row">
-              <span>Last Synced: <strong>${timeAgoText}</strong></span>
+              <span>Last Synced: <strong>${syncInfo.timeAgoText}</strong> ${syncInfo.isOutOfSync ? '<span style="color:var(--color-danger);font-size:11px;margin-left:4px;">(Out of Sync)</span>' : '<span style="color:var(--color-success);font-size:11px;margin-left:4px;">(Up to date ✓)</span>'}</span>
               <button class="btn-text" id="btn-collab-unlink" style="color: var(--color-danger); font-size: 12px; cursor: pointer; background: none; border: none; font-weight: 600;">Disconnect</button>
             </div>
           </div>

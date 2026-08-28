@@ -184,6 +184,64 @@ body {
   width: 40px;
 }
 
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.header__sync-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  padding: 6px;
+}
+
+.header__sync-icon-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+}
+
+.header__sync-dot {
+  position: absolute;
+  bottom: -1px;
+  right: -1px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1.5px solid var(--color-primary);
+}
+
+.header__sync-dot--green {
+  background: #2ECC71;
+  box-shadow: 0 0 5px rgba(46, 204, 113, 0.8);
+}
+
+.header__sync-dot--amber {
+  background: #F39C12;
+  box-shadow: 0 0 6px rgba(243, 156, 18, 0.95);
+  animation: pulseAmber 2s infinite;
+}
+
+.header__sync-dot--red {
+  background: #E74C3C;
+  box-shadow: 0 0 5px rgba(231, 76, 60, 0.8);
+}
+
+.header__sync-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes pulseAmber {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
 /* ==================== PAGE CONTENT WRAPPERS ==================== */
 .main-content,
 .summary-wrapper {
@@ -3023,6 +3081,11 @@ body {
   color: #E67E22;
 }
 
+.collab-status-badge--warning {
+  background: rgba(243, 156, 18, 0.15);
+  color: #E67E22;
+}
+
 .collab-status-badge--offline {
   background: rgba(149, 165, 166, 0.15);
   color: #7F8C8D;
@@ -3036,6 +3099,41 @@ body {
 .collab-status-badge--idle {
   background: rgba(124, 92, 252, 0.12);
   color: var(--color-primary);
+}
+
+.collab-alert-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.collab-alert-box--warning {
+  background: rgba(243, 156, 18, 0.12);
+  border: 1px solid rgba(243, 156, 18, 0.35);
+  color: #D35400;
+}
+
+.collab-alert-box--warning strong {
+  color: #E67E22;
+  display: block;
+  margin-bottom: 2px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .collab-alert-box--warning {
+    background: rgba(243, 156, 18, 0.15);
+    border-color: rgba(243, 156, 18, 0.4);
+    color: #F8C471;
+  }
+  .collab-alert-box--warning strong {
+    color: #F39C12;
+  }
 }
 
 /* Google Sign-in Button */

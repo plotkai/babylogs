@@ -781,6 +781,68 @@ class DriveSyncManager {
     return raw ? new Date(raw) : null;
   }
 
+  /**
+   * Get rich sync status metadata for title bar and collaborate modal
+   */
+  getEffectiveSyncState() {
+    const hasSyncId = !!this.getSyncId();
+    const lastSyncTime = this.getLastSyncTime();
+    const now = Date.now();
+    const isTokenValid = !!(this.accessToken && this.tokenExpiresAt > now + 60000);
+    
+    let isOutOfSync = false;
+    let timeAgoText = 'Never';
+    let timeAgoMinutes = Infinity;
+
+    if (lastSyncTime) {
+      const diffMs = now - lastSyncTime.getTime();
+      timeAgoMinutes = Math.floor(diffMs / 60000);
+      if (timeAgoMinutes < 1) {
+        timeAgoText = 'Just now';
+      } else if (timeAgoMinutes < 60) {
+        timeAgoText = `${timeAgoMinutes}m ago`;
+      } else if (timeAgoMinutes < 1440) {
+        const hours = Math.floor(timeAgoMinutes / 60);
+        timeAgoText = `${hours}h ago`;
+      } else {
+        timeAgoText = lastSyncTime.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      }
+    }
+
+    let state = 'idle';
+    if (!hasSyncId) {
+      state = 'unlinked';
+    } else if (!navigator.onLine) {
+      state = 'offline';
+      isOutOfSync = true;
+    } else if (this.isSyncing || this.status === 'syncing') {
+      state = 'syncing';
+    } else if (this.status === 'auth_required' || !isTokenValid) {
+      state = 'auth_required';
+      isOutOfSync = true;
+    } else if (this.status === 'error') {
+      state = 'error';
+      isOutOfSync = true;
+    } else if (this.status === 'synced' || (lastSyncTime && timeAgoMinutes < 60)) {
+      state = 'synced';
+      isOutOfSync = false;
+    } else if (timeAgoMinutes >= 60) {
+      state = 'auth_required';
+      isOutOfSync = true;
+    }
+
+    return {
+      hasSyncId,
+      state,
+      isTokenValid,
+      isOutOfSync,
+      lastSyncTime,
+      timeAgoText,
+      timeAgoMinutes,
+      error: this.lastError
+    };
+  }
+
   setStatus(status) {
     this.status = status;
     this.notifyStatusChange();
