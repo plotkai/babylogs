@@ -2560,6 +2560,39 @@ body {
   margin-bottom: 12px;
 }
 
+.settings__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+  width: 100%;
+}
+
+.settings__reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: var(--color-surface-alt);
+  border: 1px solid var(--color-border);
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  margin-left: auto;
+  transition: all var(--transition-fast);
+  line-height: 1.2;
+}
+
+.settings__reset-btn:hover {
+  color: var(--color-primary);
+  background: rgba(124, 92, 252, 0.12);
+  border-color: var(--color-primary);
+}
+
 .settings__row {
   display: flex;
   align-items: center;

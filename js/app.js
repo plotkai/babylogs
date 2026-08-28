@@ -2959,9 +2959,9 @@ function renderSettings() {
       </div>
 
       <div class="settings__group">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <div class="settings__header-row">
           <div class="settings__group-title" style="margin-bottom: 0;">Default Duration</div>
-          <button class="btn btn--secondary btn--sm" id="btn-reset-durations" style="font-size: 11px; padding: 4px 8px;" title="Reset all default durations">
+          <button type="button" class="settings__reset-btn" id="btn-reset-durations" title="Reset all default durations">
             ↺ Reset Defaults
           </button>
         </div>
