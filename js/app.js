@@ -166,29 +166,18 @@ function updateHeaderSyncIndicator() {
     `;
     syncBtn.title = `Synced ${info.timeAgoText} • Cloud active`;
     syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--synced';
-  } else if (info.state === 'auth_required') {
+  } else {
+    // Out of Sync (Session expired >60m, offline, or sync error) -> Solid RED dot
     syncBtn.innerHTML = `
       <div class="header__sync-icon-box" title="Out of sync (${info.timeAgoText}) • Tap to sign in & sync">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFD166" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
-        </svg>
-        <span class="header__sync-dot header__sync-dot--amber"></span>
-      </div>
-    `;
-    syncBtn.title = `Out of sync (${info.timeAgoText}) • Tap to sign in & sync`;
-    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--warning';
-  } else {
-    syncBtn.innerHTML = `
-      <div class="header__sync-icon-box" title="Sync paused (${info.error || 'Offline'}) • Tap to retry">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#FF7675" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0-4 7 8 8 0 0 0 8 8h9a4.99 4.99 0 0 0 3.32-1.28"></path>
-          <line x1="1" y1="1" x2="23" y2="23" stroke="#FF7675" stroke-width="2"></line>
         </svg>
         <span class="header__sync-dot header__sync-dot--red"></span>
       </div>
     `;
-    syncBtn.title = `Sync paused (${info.error || 'Offline'}) • Tap to retry`;
-    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--error';
+    syncBtn.title = info.error ? `Sync paused (${info.error}) • Tap to retry` : `Out of sync (${info.timeAgoText}) • Tap to sign in & sync`;
+    syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--warning';
   }
 }
 

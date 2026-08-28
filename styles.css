@@ -208,38 +208,34 @@ body {
 
 .header__sync-dot {
   position: absolute;
-  bottom: -1px;
-  right: -1px;
-  width: 7px;
-  height: 7px;
+  bottom: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  border: 1.5px solid var(--color-primary);
+  border: 2px solid #2D1050;
+  box-sizing: border-box;
 }
 
 .header__sync-dot--green {
-  background: #2ECC71;
-  box-shadow: 0 0 5px rgba(46, 204, 113, 0.8);
-}
-
-.header__sync-dot--amber {
-  background: #F39C12;
-  box-shadow: 0 0 6px rgba(243, 156, 18, 0.95);
-  animation: pulseAmber 2s infinite;
+  background-color: #00E676 !important;
+  box-shadow: 0 0 6px rgba(0, 230, 118, 0.9);
 }
 
 .header__sync-dot--red {
-  background: #E74C3C;
-  box-shadow: 0 0 5px rgba(231, 76, 60, 0.8);
+  background-color: #FF334B !important;
+  box-shadow: 0 0 6px rgba(255, 51, 75, 0.95);
+  animation: pulseRed 2s infinite;
 }
 
 .header__sync-spin {
   animation: spin 1s linear infinite;
 }
 
-@keyframes pulseAmber {
-  0% { transform: scale(0.9); opacity: 0.8; }
-  50% { transform: scale(1.3); opacity: 1; }
-  100% { transform: scale(0.9); opacity: 0.8; }
+@keyframes pulseRed {
+  0% { transform: scale(0.95); opacity: 0.85; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.85; }
 }
 
 /* ==================== PAGE CONTENT WRAPPERS ==================== */
