@@ -193,6 +193,12 @@ function renderWelcome() {
       </h1>
       <p class="welcome__subtitle">${appConfig.description || 'Track your baby\'s feeds, diapers, sleep and more'}</p>
 
+      ${!window.matchMedia('(display-mode: standalone)').matches ? `
+      <button type="button" class="welcome__install-btn" id="welcome-install-btn">
+        📲 Install App
+      </button>
+      ` : ''}
+
       <form class="welcome__form" id="welcome-form">
         <div class="form-group">
           <label class="form-group__label">Baby's Name</label>
@@ -218,12 +224,6 @@ function renderWelcome() {
             📥 Restore from Backup File
           </button>
         </div>
-
-        ${!window.matchMedia('(display-mode: standalone)').matches ? `
-        <button type="button" class="btn welcome__install-btn btn--full" id="welcome-install-btn" style="margin-top: 14px;">
-          📲 Install App
-        </button>
-        ` : ''}
       </form>
     </div>
 

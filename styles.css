@@ -1917,16 +1917,29 @@ body {
 }
 
 .welcome__install-btn {
-  margin-top: 14px;
-  background: var(--color-surface-alt);
-  color: var(--color-text-secondary);
+  margin-top: -16px;
+  margin-bottom: 24px;
+  background: var(--color-surface);
+  color: var(--color-primary);
   border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 18px;
+  border-radius: var(--radius-full);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
 }
 
 .welcome__install-btn:hover {
-  color: var(--color-text);
-  background: var(--color-surface);
+  color: #FFFFFF;
+  background: var(--color-primary);
   border-color: var(--color-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(155, 109, 255, 0.3);
 }
 
 /* ==================== SIDEBAR / HAMBURGER MENU ==================== */
