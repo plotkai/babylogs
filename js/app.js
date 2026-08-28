@@ -1885,7 +1885,6 @@ function openCollabModal(initialTab = 'auto') {
     const syncInfo = driveSync.getEffectiveSyncState();
     const isAuth = syncInfo.isTokenValid;
     const inviteLink = driveSync.getInviteLink();
-    const qrSvg = inviteLink ? generateQRCodeSVG(inviteLink, { size: 170 }) : '';
     const profiles = getProfiles();
     const settings = getSettings();
     const activeBaby = profiles.find(p => p.id === settings.activeBabyId) || profiles[0];
@@ -1957,12 +1956,6 @@ function openCollabModal(initialTab = 'auto') {
             <div class="collab-actions-row">
               <button class="btn btn--secondary btn--sm" id="btn-collab-share-native">📲 Share Link</button>
               <button class="btn btn--primary btn--sm" id="btn-collab-sync-now">🔄 Sync Now</button>
-            </div>
-
-            <!-- Instant QR Code Display -->
-            <div class="collab-qr-container">
-              ${qrSvg}
-              <div class="collab-qr-caption">📷 Scan with partner's phone to join</div>
             </div>
 
             <div class="collab-meta-row">
