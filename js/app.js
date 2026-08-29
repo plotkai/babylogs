@@ -1737,8 +1737,10 @@ function openModalOverlay(overlay) {
 }
 
 function closeModal() {
-  const overlay = document.getElementById('modal-overlay');
-  if (overlay) overlay.classList.remove('active');
+  const modalOverlay = document.getElementById('modal-overlay');
+  const confirmOverlay = document.getElementById('confirm-overlay');
+  if (modalOverlay) modalOverlay.classList.remove('active');
+  if (confirmOverlay) confirmOverlay.classList.remove('active');
   document.body.classList.remove('modal-open');
   editingActivity = null;
 }
@@ -1952,9 +1954,13 @@ function showAboutModal() {
 
   openModalOverlay(overlay);
 
-  document.getElementById('confirm-ok').addEventListener('click', () => {
+  document.getElementById('confirm-ok')?.addEventListener('click', () => {
     closeModal();
   });
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closeModal();
+  };
 }
 
 // ==================== COLLAB / CLOUD SYNC MODAL ====================
@@ -3789,13 +3795,17 @@ function showConfirm(title, message, onConfirm, confirmLabel = 'Confirm') {
   openModalOverlay(overlay);
 
   document.getElementById('confirm-cancel')?.addEventListener('click', () => {
-    overlay.classList.remove('active');
+    closeModal();
   });
 
-  document.getElementById('confirm-ok').addEventListener('click', () => {
-    overlay.classList.remove('active');
+  document.getElementById('confirm-ok')?.addEventListener('click', () => {
+    closeModal();
     if (onConfirm) onConfirm();
   });
+
+  overlay.onclick = (e) => {
+    if (e.target === overlay) closeModal();
+  };
 }
 
 // ==================== TOAST ====================

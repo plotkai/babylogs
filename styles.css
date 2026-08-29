@@ -2963,6 +2963,8 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 .confirm-overlay {
   position: fixed;
   inset: 0;
+  height: 100vh;
+  height: 100dvh;
   background: var(--color-overlay);
   z-index: 500;
   display: flex;
@@ -2971,6 +2973,8 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   padding: 24px;
   opacity: 0;
   visibility: hidden;
+  touch-action: pan-y;
+  overscroll-behavior: contain;
   transition: opacity var(--transition-normal), visibility var(--transition-normal);
 }
 
