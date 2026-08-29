@@ -1501,11 +1501,11 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 .duration-input-wrap {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-sm);
-  padding: 3px 8px;
+  padding: 2px 7px;
   transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
 }
 
@@ -1515,11 +1515,11 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 }
 
 .duration-number-input {
-  width: 44px;
+  width: 32px;
   border: none;
   background: transparent;
   font-family: var(--font-heading);
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--color-accent);
   text-align: right;
@@ -1536,7 +1536,7 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 }
 
 .duration-input-unit {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-text-muted);
   user-select: none;
