@@ -184,13 +184,14 @@ function updateHeaderSyncIndicator() {
   const info = driveSync.getEffectiveSyncState();
   if (!info.hasSyncId) {
     syncBtn.innerHTML = `
-      <div class="header__sync-icon-box" title="Collaborate & Sync (Connect Partner)">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.65;">
-          <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+      <div class="header__sync-icon-box" title="Offline (Cloud Sync Not Connected) • Tap to connect">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.85;">
+          <path d="M22.61 16.95A5 5 0 0 0 18 10h-1.26a8 8 0 0 0-7.05-6M5 5a8 8 0 0 0-4 7h.05A5 5 0 0 0 5 20h14a4.99 4.99 0 0 0 2.22-.53"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
         </svg>
       </div>
     `;
-    syncBtn.title = 'Collaborate & Sync (Connect Partner)';
+    syncBtn.title = 'Offline (Cloud Sync Not Connected) • Tap to connect';
     syncBtn.className = 'header__action-btn header__sync-btn header__sync-btn--unlinked';
     return;
   }
