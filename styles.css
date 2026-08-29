@@ -1465,14 +1465,48 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   margin-bottom: 10px;
 }
 
-.duration-badge {
+.duration-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 3px 8px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.duration-input-wrap:focus-within {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(255, 128, 0, 0.2);
+}
+
+.duration-number-input {
+  width: 44px;
+  border: none;
+  background: transparent;
+  font-family: var(--font-heading);
   font-size: 15px;
   font-weight: 700;
   color: var(--color-accent);
-  background: rgba(255, 128, 0, 0.12);
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  letter-spacing: 0.2px;
+  text-align: right;
+  outline: none;
+  padding: 0;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.duration-number-input::-webkit-outer-spin-button,
+.duration-number-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.duration-input-unit {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  user-select: none;
 }
 
 .duration-slider-row {

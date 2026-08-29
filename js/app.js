@@ -1283,15 +1283,18 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
       <div class="duration-control-card">
         <div class="duration-control-header">
           <label class="form-group__label" style="margin-bottom: 0;">Duration</label>
-          <span class="duration-badge" id="duration-badge">${initialDuration > 0 ? (formatDuration(initialDuration) || `${initialDuration} min`) : '0 min'}</span>
+          <div class="duration-input-wrap">
+            <input type="number" class="duration-number-input" id="modal-duration-number" min="0" max="720" value="${initialDuration}" placeholder="0">
+            <span class="duration-input-unit">min</span>
+          </div>
         </div>
         <div class="duration-slider-row">
-          <button type="button" class="duration-step-btn" id="btn-duration-minus" title="Decrease 15 min">− 15m</button>
+          <button type="button" class="duration-step-btn" id="btn-duration-minus" title="Decrease 5 min">− 5m</button>
           <div class="duration-slider-container">
             <input type="range" class="duration-slider" id="modal-duration-slider" min="0" max="360" step="1" value="${initialDuration}">
             <input type="hidden" id="modal-duration" value="${initialDuration}">
           </div>
-          <button type="button" class="duration-step-btn" id="btn-duration-plus" title="Increase 15 min">＋ 15m</button>
+          <button type="button" class="duration-step-btn" id="btn-duration-plus" title="Increase 5 min">＋ 5m</button>
         </div>
         <div class="duration-time-subtext" id="duration-time-subtext"></div>
       </div>
@@ -1393,17 +1396,17 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
   }
 
   // Helper to update duration & end time
-  function updateDurationDisplay(mins) {
+  function updateDurationDisplay(mins, syncNumberInput = true) {
     const clampedMins = Math.max(0, parseInt(mins) || 0);
     const durationInput = document.getElementById('modal-duration');
     const slider = document.getElementById('modal-duration-slider');
-    const badge = document.getElementById('duration-badge');
+    const numberInput = document.getElementById('modal-duration-number');
     const subtext = document.getElementById('duration-time-subtext');
 
     if (durationInput) durationInput.value = clampedMins;
     if (slider) slider.value = Math.min(360, clampedMins);
-    if (badge) {
-      badge.textContent = clampedMins > 0 ? (formatDuration(clampedMins) || `${clampedMins} min`) : '0 min (Instant)';
+    if (numberInput && syncNumberInput) {
+      numberInput.value = clampedMins;
     }
 
     if (subtext) {
@@ -1452,31 +1455,41 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
   if (selectedType) {
     renderDynamicFields(selectedType, activity?.subFields);
   }
-  updateDurationDisplay(initialDuration);
+  updateDurationDisplay(initialDuration, true);
 
-  // Duration Slider & +/- 15m buttons
+  // Duration direct number input
+  document.getElementById('modal-duration-number')?.addEventListener('input', (e) => {
+    const val = parseInt(e.target.value) || 0;
+    updateDurationDisplay(val, false);
+  });
+  document.getElementById('modal-duration-number')?.addEventListener('blur', (e) => {
+    const val = Math.max(0, parseInt(e.target.value) || 0);
+    updateDurationDisplay(val, true);
+  });
+
+  // Duration Slider & +/- 5m buttons
   document.getElementById('modal-duration-slider')?.addEventListener('input', (e) => {
-    updateDurationDisplay(parseInt(e.target.value) || 0);
+    updateDurationDisplay(parseInt(e.target.value) || 0, true);
   });
 
   document.getElementById('btn-duration-minus')?.addEventListener('click', () => {
     const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
-    updateDurationDisplay(Math.max(0, current - 15));
+    updateDurationDisplay(Math.max(0, current - 5), true);
   });
 
   document.getElementById('btn-duration-plus')?.addEventListener('click', () => {
     const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
-    updateDurationDisplay(current + 15);
+    updateDurationDisplay(current + 5, true);
   });
 
   // Recalculate end time when date or time changes
   document.getElementById('modal-date')?.addEventListener('change', () => {
     const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
-    updateDurationDisplay(current);
+    updateDurationDisplay(current, true);
   });
   document.getElementById('modal-time')?.addEventListener('change', () => {
     const current = parseInt(document.getElementById('modal-duration')?.value) || 0;
-    updateDurationDisplay(current);
+    updateDurationDisplay(current, true);
   });
 
   // Save
