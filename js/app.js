@@ -1304,7 +1304,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
 
     <div class="form-group">
       <label class="form-group__label">Notes</label>
-      <textarea class="form-group__textarea" id="modal-notes" placeholder="Optional notes...">${activity?.notes || ''}</textarea>
+      <input type="text" class="form-group__input" id="modal-notes" placeholder="Optional notes..." value="${activity?.notes || ''}" autocomplete="off">
     </div>
   `;
 
