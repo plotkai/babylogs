@@ -3,7 +3,7 @@
 import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAdMobConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
-import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
+import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, inspectBackup } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar, buildFeedsOutputsTimelineData, buildSleepActivityTimelineData, renderGroupedTimelineChart, renderMultiLineTimelineChart } from './summary.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
@@ -3278,7 +3278,6 @@ async function loadSummaryData(period) {
 
     <!-- Export -->
     <div class="summary__export-btns">
-      <button class="btn btn--whatsapp btn--sm" id="btn-summary-share">💬 Share WhatsApp</button>
       <button class="btn btn--secondary btn--sm" id="export-csv">📄 CSV</button>
       <button class="btn btn--secondary btn--sm" id="export-pdf">📋 PDF</button>
     </div>
@@ -3338,16 +3337,7 @@ async function loadSummaryData(period) {
     }
   }, 100);
 
-  // Share & Export buttons
-  document.getElementById('btn-summary-share')?.addEventListener('click', async () => {
-    const baby = profiles.find(p => p.id === settings.activeBabyId);
-    try {
-      await shareSummaryText(summary, baby, period);
-    } catch (err) {
-      showToast('Sharing failed');
-    }
-  });
-
+  // Export buttons
   document.getElementById('export-csv')?.addEventListener('click', () => {
     const baby = profiles.find(p => p.id === settings.activeBabyId);
     exportCSV(summary.activities, baby?.name, period);
