@@ -3,9 +3,9 @@
 import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
-import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
-import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar } from './summary.js';
+import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar, buildFeedsOutputsTimelineData, buildSleepActivityTimelineData, renderGroupedTimelineChart } from './summary.js';
+import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
 import { driveSync } from './drive-sync.js';
 import { generateQRCodeSVG } from './qrcode.js';
@@ -3005,6 +3005,17 @@ async function loadSummaryData(period) {
   const unitLabel = settings.unit?.volume || 'ml';
 
   container.innerHTML = `
+    <!-- Feeds & Outputs Timeline Graph -->
+    <div class="summary__card">
+      <div class="summary__card-title">🍼 & 🧷 Feeds & Outputs Timeline</div>
+      <div class="summary-chart-legend">
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #7C5CFC;"></span> Feeds</span>
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #4A90D9;"></span> Wet</span>
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #A0522D;"></span> Poop</span>
+      </div>
+      <canvas class="summary__chart" id="chart-feeds-outputs" style="height: 175px;"></canvas>
+    </div>
+
     <!-- Feed Summary -->
     <div class="summary__card">
       <div class="summary__card-title">🍼 Feeding</div>
@@ -3029,7 +3040,6 @@ async function loadSummaryData(period) {
       <div style="margin-top: 12px; text-align: center; font-size: 13px; color: var(--color-text-secondary);">
         Avg interval: <strong>${feedInterval}</strong>
       </div>
-      <canvas class="summary__chart" id="chart-feeds"></canvas>
     </div>
 
     <!-- Output Summary -->
@@ -3055,6 +3065,17 @@ async function loadSummaryData(period) {
       </div>
     </div>
 
+    <!-- Sleep, Play & Crying Timeline Graph -->
+    <div class="summary__card">
+      <div class="summary__card-title">😴 & 🎈 Sleep, Play & Mood Timeline</div>
+      <div class="summary-chart-legend">
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #6C63FF;"></span> Sleep</span>
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #4ECDC4;"></span> Play & Tummy</span>
+        <span class="care-legend-item"><span class="summary-chart-dot" style="background-color: #FF6B6B;"></span> Crying</span>
+      </div>
+      <canvas class="summary__chart" id="chart-sleep-activity" style="height: 175px;"></canvas>
+    </div>
+
     <!-- Sleep Summary -->
     <div class="summary__card">
       <div class="summary__card-title">😴 Sleep</div>
@@ -3076,7 +3097,6 @@ async function loadSummaryData(period) {
           <div class="summary__stat-label">Longest Stretch</div>
         </div>
       </div>
-      <canvas class="summary__chart" id="chart-sleep"></canvas>
     </div>
 
     <!-- Expected Performance Targets -->
@@ -3242,26 +3262,16 @@ async function loadSummaryData(period) {
 
   // Render charts
   setTimeout(() => {
-    const feedCanvas = document.getElementById('chart-feeds');
-    if (feedCanvas) {
-      renderBarChart(feedCanvas, {
-        labels: ['Breast', 'Formula', 'Express'],
-        values: [summary.feeds.breastFeedCount, summary.feeds.formulaCount, summary.feeds.expressCount],
-        colors: ['#7C5CFC', '#FF8FA3', '#FF9F43']
-      });
+    const feedOutputCanvas = document.getElementById('chart-feeds-outputs');
+    if (feedOutputCanvas) {
+      const feedData = buildFeedsOutputsTimelineData(summary.activities || [], period, summaryDate);
+      renderGroupedTimelineChart(feedOutputCanvas, feedData);
     }
 
-    const sleepCanvas = document.getElementById('chart-sleep');
-    if (sleepCanvas && summary.sleep.napCount > 0) {
-      renderBarChart(sleepCanvas, {
-        labels: ['Total (h)', 'Avg Nap (m)', 'Longest (m)'],
-        values: [
-          Math.round(summary.sleep.totalMinutes / 60 * 10) / 10,
-          summary.sleep.avgNapMinutes,
-          summary.sleep.longestNapMinutes
-        ],
-        colors: ['#6C63FF', '#4ECDC4', '#219B9D']
-      });
+    const sleepActivityCanvas = document.getElementById('chart-sleep-activity');
+    if (sleepActivityCanvas) {
+      const sleepData = buildSleepActivityTimelineData(summary.activities || [], period, summaryDate);
+      renderGroupedTimelineChart(sleepActivityCanvas, sleepData);
     }
 
     const weightCanvas = document.getElementById('chart-weight');

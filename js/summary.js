@@ -328,6 +328,285 @@ export function comparePerformance(summary, dob, period = 'day', isCurrent = fal
 }
 
 /**
+ * Build timeline dataset for Feeds & Outputs combined across time
+ */
+export function buildFeedsOutputsTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
+  if (period === 'day') {
+    const labels = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
+    const feeds = new Array(12).fill(0);
+    const wet = new Array(12).fill(0);
+    const poop = new Array(12).fill(0);
+
+    activities.forEach(a => {
+      const d = new Date(a.startTime);
+      if (isNaN(d.getTime())) return;
+      const h = d.getHours();
+      const bin = Math.min(11, Math.floor(h / 2));
+
+      if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
+        feeds[bin]++;
+      } else if (a.eventType === 'wet') {
+        wet[bin]++;
+      } else if (a.eventType === 'poop') {
+        poop[bin]++;
+      } else if (a.eventType === 'diaper_change') {
+        const dt = a.subFields?.diaperType || a.diaperType;
+        const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
+        let hasType = false;
+        list.forEach(t => {
+          const l = String(t).toLowerCase();
+          if (l.includes('wet')) { wet[bin]++; hasType = true; }
+          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[bin]++; hasType = true; }
+        });
+        if (!hasType) {
+          wet[bin]++;
+        }
+      }
+    });
+
+    return {
+      labels,
+      series: [
+        { name: 'Feeds', color: '#7C5CFC', values: feeds },
+        { name: 'Wet', color: '#4A90D9', values: wet },
+        { name: 'Poop', color: '#A0522D', values: poop }
+      ]
+    };
+  }
+
+  // Week / Month view: Group by day
+  const { start, end } = getDateRange(period, referenceDate);
+  const days = [];
+  const curr = new Date(start);
+  while (curr <= end) {
+    days.push(new Date(curr));
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${d.getDate()}`);
+  const feeds = new Array(days.length).fill(0);
+  const wet = new Array(days.length).fill(0);
+  const poop = new Array(days.length).fill(0);
+
+  const dayKeyMap = {};
+  days.forEach((d, idx) => {
+    dayKeyMap[formatDateKey(d)] = idx;
+  });
+
+  activities.forEach(a => {
+    const key = a.date || formatDateKey(new Date(a.startTime));
+    const idx = dayKeyMap[key];
+    if (idx === undefined) return;
+
+    if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
+      feeds[idx]++;
+    } else if (a.eventType === 'wet') {
+      wet[idx]++;
+    } else if (a.eventType === 'poop') {
+      poop[idx]++;
+    } else if (a.eventType === 'diaper_change') {
+      const dt = a.subFields?.diaperType || a.diaperType;
+      const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
+      let hasType = false;
+      list.forEach(t => {
+        const l = String(t).toLowerCase();
+        if (l.includes('wet')) { wet[idx]++; hasType = true; }
+        if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[idx]++; hasType = true; }
+      });
+      if (!hasType) {
+        wet[idx]++;
+      }
+    }
+  });
+
+  return {
+    labels: dayLabels,
+    series: [
+      { name: 'Feeds', color: '#7C5CFC', values: feeds },
+      { name: 'Wet', color: '#4A90D9', values: wet },
+      { name: 'Poop', color: '#A0522D', values: poop }
+    ]
+  };
+}
+
+/**
+ * Build timeline dataset for Sleep, Playtime & Crying combined across time
+ */
+export function buildSleepActivityTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
+  if (period === 'day') {
+    const labels = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
+    const sleep = new Array(12).fill(0);
+    const play = new Array(12).fill(0);
+    const crying = new Array(12).fill(0);
+
+    activities.forEach(a => {
+      const d = new Date(a.startTime);
+      if (isNaN(d.getTime())) return;
+      const h = d.getHours();
+      const bin = Math.min(11, Math.floor(h / 2));
+      const dur = a.duration || 0;
+
+      if (a.eventType === 'sleep') {
+        sleep[bin] += dur > 0 ? dur : 30;
+      } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
+        play[bin] += dur > 0 ? dur : 15;
+      } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
+        crying[bin] += dur > 0 ? dur : 10;
+      }
+    });
+
+    return {
+      labels,
+      series: [
+        { name: 'Sleep', color: '#6C63FF', values: sleep },
+        { name: 'Play', color: '#4ECDC4', values: play },
+        { name: 'Crying', color: '#FF6B6B', values: crying }
+      ]
+    };
+  }
+
+  // Week / Month view: Group by day
+  const { start, end } = getDateRange(period, referenceDate);
+  const days = [];
+  const curr = new Date(start);
+  while (curr <= end) {
+    days.push(new Date(curr));
+    curr.setDate(curr.getDate() + 1);
+  }
+
+  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${d.getDate()}`);
+  const sleepHours = new Array(days.length).fill(0);
+  const playMins = new Array(days.length).fill(0);
+  const cryingMins = new Array(days.length).fill(0);
+
+  const dayKeyMap = {};
+  days.forEach((d, idx) => {
+    dayKeyMap[formatDateKey(d)] = idx;
+  });
+
+  activities.forEach(a => {
+    const key = a.date || formatDateKey(new Date(a.startTime));
+    const idx = dayKeyMap[key];
+    if (idx === undefined) return;
+    const dur = a.duration || 0;
+
+    if (a.eventType === 'sleep') {
+      sleepHours[idx] += Math.round(((dur > 0 ? dur : 60) / 60) * 10) / 10;
+    } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
+      playMins[idx] += dur > 0 ? dur : 15;
+    } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
+      cryingMins[idx] += dur > 0 ? dur : 10;
+    }
+  });
+
+  return {
+    labels: dayLabels,
+    series: [
+      { name: 'Sleep', color: '#6C63FF', values: sleepHours },
+      { name: 'Play', color: '#4ECDC4', values: playMins },
+      { name: 'Crying', color: '#FF6B6B', values: cryingMins }
+    ]
+  };
+}
+
+/**
+ * Render multi-series grouped bar timeline chart on canvas
+ */
+export function renderGroupedTimelineChart(canvas, chartData) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+  const padding = { top: 16, right: 12, bottom: 28, left: 32 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const labels = chartData.labels || [];
+  const series = chartData.series || [];
+
+  if (labels.length === 0 || series.length === 0) {
+    ctx.fillStyle = '#888';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data logged for this period', width / 2, height / 2);
+    return;
+  }
+
+  // Find max value across all series and bins
+  let maxVal = 0;
+  series.forEach(s => {
+    s.values.forEach(v => {
+      if (v > maxVal) maxVal = v;
+    });
+  });
+  if (maxVal === 0) maxVal = 1;
+
+  // Grid lines
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : '#eee';
+  ctx.lineWidth = 1;
+  const gridLines = 3;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = padding.top + chartHeight - (chartHeight / gridLines * i);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+
+    ctx.fillStyle = isDark ? '#777' : '#999';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    const val = Math.round(maxVal / gridLines * i * 10) / 10;
+    ctx.fillText(val, padding.left - 4, y + 3);
+  }
+
+  const groupWidth = chartWidth / labels.length;
+  const numSeries = series.length;
+  const barWidth = Math.max(2, Math.min((groupWidth * 0.75) / numSeries, 10));
+  const totalBarsWidth = barWidth * numSeries;
+
+  labels.forEach((label, binIdx) => {
+    const groupCenterX = padding.left + groupWidth * binIdx + groupWidth / 2;
+    const startX = groupCenterX - totalBarsWidth / 2;
+
+    series.forEach((s, sIdx) => {
+      const val = s.values[binIdx] || 0;
+      if (val > 0) {
+        const barH = (val / maxVal) * chartHeight;
+        const x = startX + sIdx * barWidth;
+        const y = padding.top + chartHeight - barH;
+
+        ctx.fillStyle = s.color;
+        ctx.beginPath();
+        const r = Math.min(barWidth / 2, 3);
+        ctx.moveTo(x, y + r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.lineTo(x + barWidth - r, y);
+        ctx.quadraticCurveTo(x + barWidth, y, x + barWidth, y + r);
+        ctx.lineTo(x + barWidth, padding.top + chartHeight);
+        ctx.lineTo(x, padding.top + chartHeight);
+        ctx.closePath();
+        ctx.fill();
+      }
+    });
+
+    // X-axis label
+    ctx.fillStyle = isDark ? '#888' : '#666';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, groupCenterX, height - 8);
+  });
+}
+
+/**
  * Render a simple bar chart on a canvas element
  */
 export function renderBarChart(canvas, data, options = {}) {

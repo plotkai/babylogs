@@ -2480,6 +2480,29 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   margin-top: 8px;
 }
 
+.summary-chart-legend {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 6px 10px;
+  background: var(--color-surface-alt);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+  margin-bottom: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.summary-chart-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 .summary__export-btns {
   display: flex;
   gap: 8px;
