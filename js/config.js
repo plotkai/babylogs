@@ -163,7 +163,15 @@ function getDefaultConfig() {
               { key: 'diaperChange', label: 'Diaper Changed', type: 'checkbox', default: true, required: false }
             ]
           },
-          diaper_change: { label: 'Diaper Change', color: '#6BBFA0', emoji: '🧷', defaultDuration: 5, fields: [] }
+          diaper_change: {
+            label: 'Diaper Change',
+            color: '#6BBFA0',
+            emoji: '🧷',
+            defaultDuration: 5,
+            fields: [
+              { key: 'diaperType', label: 'Type', type: 'multi-select', options: ["Wet", "Soiled", "Dry"], required: true }
+            ]
+          }
         }
       },
       activity: {

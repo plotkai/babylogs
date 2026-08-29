@@ -742,32 +742,34 @@ function renderTimelineFilterSummary(activities, eventType) {
     }
 
     // Volume / Amount
-    if (act.amount !== undefined && act.amount !== null && !isNaN(Number(act.amount))) {
-      totalVolume += Number(act.amount);
-      hasVolume = true;
-    } else if (act.volume !== undefined && act.volume !== null && !isNaN(Number(act.volume))) {
-      totalVolume += Number(act.volume);
+    const vol = act.subFields?.amount || act.subFields?.volume || act.subFields?.quantity || act.amount || act.volume;
+    if (vol !== undefined && vol !== null && !isNaN(Number(vol))) {
+      totalVolume += Number(vol);
       hasVolume = true;
     }
 
     // Breast feed sides
-    if (act.side) {
-      const s = String(act.side).toLowerCase();
+    const side = act.subFields?.side || act.side;
+    if (side) {
+      const s = String(side).toLowerCase();
       if (s === 'left') leftCount++;
       else if (s === 'right') rightCount++;
       else if (s === 'both') bothCount++;
     }
 
     // Diaper types
-    if (act.diaperType) {
-      const dt = Array.isArray(act.diaperType) ? act.diaperType : [act.diaperType];
-      dt.forEach(t => {
+    const dt = act.subFields?.diaperType || act.diaperType;
+    if (dt) {
+      const list = Array.isArray(dt) ? dt : [dt];
+      list.forEach(t => {
         const lower = String(t).toLowerCase();
         if (lower.includes('wet')) wetCount++;
         if (lower.includes('soiled') || lower.includes('poop') || lower.includes('dirty') || lower.includes('bm')) poopCount++;
         if (lower.includes('dry')) dryCount++;
       });
     }
+    if (act.eventType === 'wet') wetCount++;
+    if (act.eventType === 'poop') poopCount++;
   });
 
   const avgDurationMins = durations.length > 0 ? Math.round(totalDurationMins / durations.length) : 0;
@@ -797,11 +799,11 @@ function renderTimelineFilterSummary(activities, eventType) {
         <span>Latest: <strong>${formatTime(activities[0].startTime)}</strong></span>
       `;
     }
-  } else if (eventType === 'diaper') {
+  } else if (eventType === 'diaper_change' || eventType === 'diaper' || eventType === 'wet' || eventType === 'poop') {
     itemsHtml = `
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value">${count}</div>
-        <div class="timeline-filter-summary__label">Total Changes</div>
+        <div class="timeline-filter-summary__label">Total Logs</div>
       </div>
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value" style="color: var(--color-secondary);">${wetCount}</div>
@@ -948,7 +950,29 @@ async function loadTimeline() {
 
   // Filter activities if an event filter is active
   const displayActivities = currentEventFilter
-    ? currentActivities.filter(a => a.eventType === currentEventFilter)
+    ? currentActivities.filter(a => {
+        if (a.eventType === currentEventFilter) return true;
+        if (currentEventFilter === 'wet') {
+          const dt = a.subFields?.diaperType || a.diaperType;
+          if (Array.isArray(dt) && dt.some(t => String(t).toLowerCase().includes('wet'))) return true;
+          if (typeof dt === 'string' && dt.toLowerCase().includes('wet')) return true;
+        }
+        if (currentEventFilter === 'poop') {
+          const dt = a.subFields?.diaperType || a.diaperType;
+          if (Array.isArray(dt) && dt.some(t => {
+            const l = String(t).toLowerCase();
+            return l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm');
+          })) return true;
+          if (typeof dt === 'string') {
+            const l = dt.toLowerCase();
+            if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) return true;
+          }
+        }
+        if (currentEventFilter === 'diaper_change') {
+          if (a.eventType === 'wet' || a.eventType === 'poop' || a.subFields?.diaperChange === true) return true;
+        }
+        return false;
+      })
     : currentActivities;
 
   // Render or clear the filter summary card

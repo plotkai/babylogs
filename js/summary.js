@@ -113,6 +113,19 @@ export async function computeSummary(babyId, startDate, endDate) {
         break;
       case 'diaper_change':
         summary.output.diaperChangeCount++;
+        const dt = a.subFields?.diaperType || a.diaperType;
+        if (dt) {
+          const list = Array.isArray(dt) ? dt : [dt];
+          list.forEach(t => {
+            const lower = String(t).toLowerCase();
+            if (lower.includes('wet')) {
+              summary.output.wetCount++;
+            }
+            if (lower.includes('soiled') || lower.includes('poop') || lower.includes('dirty') || lower.includes('bm')) {
+              summary.output.poopCount++;
+            }
+          });
+        }
         break;
       case 'sleep':
         summary.sleep.totalMinutes += duration;
