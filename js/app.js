@@ -903,7 +903,6 @@ function renderTimelineFilterSummary(activities, eventType) {
           <span>${typeConfig.emoji || '⚡'}</span>
           <span>${typeConfig.label || 'Activity'} Daily Summary</span>
         </span>
-        <span class="timeline-filter-summary__badge">${count} logged</span>
       </div>
       <div class="timeline-filter-summary__grid">
         ${itemsHtml}
