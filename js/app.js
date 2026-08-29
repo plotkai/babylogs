@@ -1316,7 +1316,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
   `;
 
   // Show modal
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   let activeDropdownCategory = null;
 
@@ -1704,9 +1704,18 @@ function confirmDeleteActivity(activity) {
   );
 }
 
+function openModalOverlay(overlay) {
+  const target = overlay || document.getElementById('modal-overlay');
+  if (target) {
+    target.classList.add('active');
+    document.body.classList.add('modal-open');
+  }
+}
+
 function closeModal() {
   const overlay = document.getElementById('modal-overlay');
   if (overlay) overlay.classList.remove('active');
+  document.body.classList.remove('modal-open');
   editingActivity = null;
 }
 
@@ -1799,7 +1808,7 @@ function openAddBabyModal() {
     <button class="btn btn--primary" id="add-baby-save">Add Baby</button>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('add-baby-save').addEventListener('click', () => {
@@ -1917,10 +1926,10 @@ function showAboutModal() {
     </div>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   document.getElementById('confirm-ok').addEventListener('click', () => {
-    overlay.classList.remove('active');
+    closeModal();
   });
 }
 
@@ -2279,7 +2288,7 @@ function openCollabModal(initialTab = 'auto') {
   }
 
   renderModalContent();
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 }
 
 // ==================== EXPORT & IMPORT MODALS ====================
@@ -2359,7 +2368,7 @@ function openExportModal() {
     <button class="btn btn--secondary btn--full" id="modal-cancel">Close</button>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   const rangeSelect = document.getElementById('export-range-select');
   const customRow = document.getElementById('export-custom-range-row');
@@ -2507,7 +2516,7 @@ function openImportModal(preloadedData = null, preloadedTitle = '') {
     <button class="btn btn--primary" id="btn-do-import" ${preloadedData ? '' : 'disabled'}>⚡ Smart Merge Now</button>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   // Radio toggle highlighting
   document.querySelectorAll('input[name="import-mode"]').forEach(radio => {
@@ -2781,7 +2790,7 @@ function openEditProfileModal(targetBabyId) {
     <button class="btn btn--primary" id="save-profile-btn">Save Changes</button>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   document.getElementById('modal-cancel').addEventListener('click', closeModal);
   document.getElementById('save-profile-btn').addEventListener('click', () => {
@@ -3678,7 +3687,7 @@ function showInstallGuideModal(requestedTab = null) {
     <button class="btn btn--primary btn--full" id="modal-cancel">Got it</button>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   // Tab switching
   document.querySelectorAll('.install-guide-tab').forEach(tabBtn => {
@@ -3743,7 +3752,7 @@ function showConfirm(title, message, onConfirm, confirmLabel = 'Confirm') {
     </div>
   `;
 
-  overlay.classList.add('active');
+  openModalOverlay(overlay);
 
   document.getElementById('confirm-cancel')?.addEventListener('click', () => {
     overlay.classList.remove('active');
