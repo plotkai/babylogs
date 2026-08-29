@@ -4,7 +4,7 @@ import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivit
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
-import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar, buildFeedsOutputsTimelineData, buildSleepActivityTimelineData, renderGroupedTimelineChart } from './summary.js';
+import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar, buildFeedsOutputsTimelineData, buildSleepActivityTimelineData, renderGroupedTimelineChart, renderMultiLineTimelineChart } from './summary.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
 import { trackPageView, trackActivityLogged, trackDataExport, trackDataImport, trackPWAInstall } from './analytics.js';
 import { driveSync } from './drive-sync.js';
@@ -3265,7 +3265,7 @@ async function loadSummaryData(period) {
     const feedOutputCanvas = document.getElementById('chart-feeds-outputs');
     if (feedOutputCanvas) {
       const feedData = buildFeedsOutputsTimelineData(summary.activities || [], period, summaryDate);
-      renderGroupedTimelineChart(feedOutputCanvas, feedData);
+      renderMultiLineTimelineChart(feedOutputCanvas, feedData);
     }
 
     const sleepActivityCanvas = document.getElementById('chart-sleep-activity');

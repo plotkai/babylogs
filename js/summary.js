@@ -510,6 +510,141 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
 }
 
 /**
+ * Render multi-series line timeline chart on canvas (for Feeds & Outputs)
+ */
+export function renderMultiLineTimelineChart(canvas, chartData, options = {}) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+
+  const width = rect.width;
+  const height = rect.height;
+  const padding = { top: 16, right: 16, bottom: 28, left: 32 };
+  const chartWidth = width - padding.left - padding.right;
+  const chartHeight = height - padding.top - padding.bottom;
+
+  ctx.clearRect(0, 0, width, height);
+
+  const labels = chartData.labels || [];
+  const series = chartData.series || [];
+
+  if (labels.length === 0 || series.length === 0) {
+    ctx.fillStyle = '#888';
+    ctx.font = '13px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('No data logged for this period', width / 2, height / 2);
+    return;
+  }
+
+  // Find max value across all series
+  let rawMax = 0;
+  series.forEach(s => {
+    s.values.forEach(v => {
+      if (v > rawMax) rawMax = v;
+    });
+  });
+
+  // Ensure Y-axis is always whole numbers (integers)
+  let maxVal = Math.max(Math.ceil(rawMax), 1);
+  let gridLines = 3;
+  if (maxVal <= 3) {
+    gridLines = maxVal;
+  } else {
+    const step = Math.ceil(maxVal / 3);
+    gridLines = 3;
+    maxVal = step * gridLines;
+  }
+
+  // Grid lines
+  const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : '#eee';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= gridLines; i++) {
+    const y = padding.top + chartHeight - (chartHeight / gridLines * i);
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(width - padding.right, y);
+    ctx.stroke();
+
+    ctx.fillStyle = isDark ? '#777' : '#999';
+    ctx.font = '10px Inter, sans-serif';
+    ctx.textAlign = 'right';
+    const yVal = Math.round((maxVal / gridLines) * i);
+    ctx.fillText(yVal, padding.left - 5, y + 3);
+  }
+
+  const gap = labels.length > 1 ? chartWidth / (labels.length - 1) : chartWidth;
+
+  // Draw lines for each series
+  series.forEach(s => {
+    if (!s.values || s.values.length === 0) return;
+
+    ctx.strokeStyle = s.color;
+    ctx.lineWidth = 2.2;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+
+    const points = [];
+    labels.forEach((_, i) => {
+      const val = s.values[i] || 0;
+      const x = padding.left + gap * i;
+      const y = padding.top + chartHeight - (val / maxVal) * chartHeight;
+      points.push({ x, y, val });
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    // Subtle area fill under line
+    if (points.length > 1) {
+      ctx.lineTo(points[points.length - 1].x, padding.top + chartHeight);
+      ctx.lineTo(points[0].x, padding.top + chartHeight);
+      ctx.closePath();
+      ctx.fillStyle = s.color + '18';
+      ctx.fill();
+    }
+
+    // Points / Dots
+    points.forEach(p => {
+      if (p.val > 0 || labels.length <= 14) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.val > 0 ? 3.5 : 2, 0, Math.PI * 2);
+        ctx.fillStyle = p.val > 0 ? s.color : (isDark ? '#444' : '#ccc');
+        ctx.fill();
+        if (p.val > 0) {
+          ctx.strokeStyle = isDark ? '#1a102f' : '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+        }
+      }
+    });
+  });
+
+  // X-axis labels with decimation for large counts (e.g. Month view)
+  const isMonth = labels.length > 20;
+  labels.forEach((label, i) => {
+    let shouldShow = true;
+    if (isMonth) {
+      const dayNum = parseInt(label) || (i + 1);
+      shouldShow = dayNum === 1 || dayNum % 5 === 0 || i === labels.length - 1;
+    }
+
+    if (shouldShow) {
+      ctx.fillStyle = isDark ? '#888' : '#666';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      const x = padding.left + gap * i;
+      ctx.fillText(label, x, height - 8);
+    }
+  });
+}
+
+/**
  * Render multi-series grouped bar timeline chart on canvas
  */
 export function renderGroupedTimelineChart(canvas, chartData) {
@@ -541,19 +676,28 @@ export function renderGroupedTimelineChart(canvas, chartData) {
   }
 
   // Find max value across all series and bins
-  let maxVal = 0;
+  let rawMax = 0;
   series.forEach(s => {
     s.values.forEach(v => {
-      if (v > maxVal) maxVal = v;
+      if (v > rawMax) rawMax = v;
     });
   });
-  if (maxVal === 0) maxVal = 1;
+
+  // Ensure Y-axis is always whole numbers
+  let maxVal = Math.max(Math.ceil(rawMax), 1);
+  let gridLines = 3;
+  if (maxVal <= 3) {
+    gridLines = maxVal;
+  } else {
+    const step = Math.ceil(maxVal / 3);
+    gridLines = 3;
+    maxVal = step * gridLines;
+  }
 
   // Grid lines
   const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
   ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.08)' : '#eee';
   ctx.lineWidth = 1;
-  const gridLines = 3;
   for (let i = 0; i <= gridLines; i++) {
     const y = padding.top + chartHeight - (chartHeight / gridLines * i);
     ctx.beginPath();
@@ -564,7 +708,7 @@ export function renderGroupedTimelineChart(canvas, chartData) {
     ctx.fillStyle = isDark ? '#777' : '#999';
     ctx.font = '10px Inter, sans-serif';
     ctx.textAlign = 'right';
-    const val = Math.round(maxVal / gridLines * i * 10) / 10;
+    const val = Math.round((maxVal / gridLines) * i);
     ctx.fillText(val, padding.left - 4, y + 3);
   }
 
@@ -572,6 +716,8 @@ export function renderGroupedTimelineChart(canvas, chartData) {
   const numSeries = series.length;
   const barWidth = Math.max(2, Math.min((groupWidth * 0.75) / numSeries, 10));
   const totalBarsWidth = barWidth * numSeries;
+
+  const isMonth = labels.length > 20;
 
   labels.forEach((label, binIdx) => {
     const groupCenterX = padding.left + groupWidth * binIdx + groupWidth / 2;
@@ -598,11 +744,19 @@ export function renderGroupedTimelineChart(canvas, chartData) {
       }
     });
 
-    // X-axis label
-    ctx.fillStyle = isDark ? '#888' : '#666';
-    ctx.font = '10px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(label, groupCenterX, height - 8);
+    // X-axis label with decimation for month view
+    let shouldShow = true;
+    if (isMonth) {
+      const dayNum = parseInt(label) || (binIdx + 1);
+      shouldShow = dayNum === 1 || dayNum % 5 === 0 || binIdx === labels.length - 1;
+    }
+
+    if (shouldShow) {
+      ctx.fillStyle = isDark ? '#888' : '#666';
+      ctx.font = '10px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(label, groupCenterX, height - 8);
+    }
   });
 }
 
