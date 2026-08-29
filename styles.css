@@ -1343,19 +1343,30 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 
 .selected-event-badge {
   font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: var(--radius-full);
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
   background: var(--color-surface-alt);
-  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  color: var(--color-primary);
   display: flex;
   align-items: center;
   gap: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  outline: none;
+  font-family: inherit;
+}
+
+.selected-event-badge:hover {
+  background: var(--color-surface);
+  border-color: var(--color-primary);
 }
 
 /* Dropdown Menu / Popup Selector */
 .event-dropdown-menu {
-  margin-top: 8px;
+  margin-top: 6px;
+  margin-bottom: 4px;
   background: var(--color-surface);
   border: 1.5px solid var(--color-border);
   border-radius: var(--radius-md);

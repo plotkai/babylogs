@@ -1256,6 +1256,15 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
         `).join('')}
       </div>
 
+      <!-- Dropdown Selector Menu (anchored directly below category buttons) -->
+      <div class="event-dropdown-menu hidden" id="event-dropdown-menu">
+        <div class="event-dropdown-header">
+          <span id="dropdown-category-title">Options</span>
+          <span style="font-size: 11px; cursor: pointer; color: var(--color-text-muted);" id="btn-close-dropdown">✕ Close</span>
+        </div>
+        <div id="event-dropdown-items"></div>
+      </div>
+
       <!-- Selected Event Card Trigger -->
       <div class="selected-event-display" id="selected-event-display">
         <div class="selected-event-info">
@@ -1265,16 +1274,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
             <div style="font-size: 11px; color: var(--color-text-secondary);" id="selected-event-category"></div>
           </div>
         </div>
-        <span class="selected-event-badge" id="selected-event-badge">Select ▾</span>
-      </div>
-
-      <!-- Dropdown Selector Menu -->
-      <div class="event-dropdown-menu hidden" id="event-dropdown-menu">
-        <div class="event-dropdown-header">
-          <span id="dropdown-category-title">Options</span>
-          <span style="font-size: 11px; cursor: pointer; color: var(--color-text-muted);" id="btn-close-dropdown">✕ Close</span>
-        </div>
-        <div id="event-dropdown-items"></div>
+        <button type="button" class="selected-event-badge" id="selected-event-badge">Change ▾</button>
       </div>
     </div>
 
