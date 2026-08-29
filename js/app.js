@@ -3271,7 +3271,7 @@ async function loadSummaryData(period) {
     const sleepActivityCanvas = document.getElementById('chart-sleep-activity');
     if (sleepActivityCanvas) {
       const sleepData = buildSleepActivityTimelineData(summary.activities || [], period, summaryDate);
-      renderGroupedTimelineChart(sleepActivityCanvas, sleepData);
+      renderMultiLineTimelineChart(sleepActivityCanvas, sleepData);
     }
 
     const weightCanvas = document.getElementById('chart-weight');

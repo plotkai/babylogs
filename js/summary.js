@@ -430,14 +430,14 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
 }
 
 /**
- * Build timeline dataset for Sleep, Playtime & Crying combined across time
+ * Build timeline dataset for Sleep, Playtime & Crying combined across time (in Hours)
  */
 export function buildSleepActivityTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
   if (period === 'day') {
     const labels = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
-    const sleep = new Array(12).fill(0);
-    const play = new Array(12).fill(0);
-    const crying = new Array(12).fill(0);
+    const sleepMins = new Array(12).fill(0);
+    const playMins = new Array(12).fill(0);
+    const cryingMins = new Array(12).fill(0);
 
     activities.forEach(a => {
       const d = new Date(a.startTime);
@@ -447,25 +447,26 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
       const dur = a.duration || 0;
 
       if (a.eventType === 'sleep') {
-        sleep[bin] += dur > 0 ? dur : 30;
+        sleepMins[bin] += dur > 0 ? dur : 30;
       } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
-        play[bin] += dur > 0 ? dur : 15;
+        playMins[bin] += dur > 0 ? dur : 15;
       } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
-        crying[bin] += dur > 0 ? dur : 10;
+        cryingMins[bin] += dur > 0 ? dur : 10;
       }
     });
 
     return {
       labels,
+      unitSuffix: 'h',
       series: [
-        { name: 'Sleep', color: '#6C63FF', values: sleep },
-        { name: 'Play', color: '#4ECDC4', values: play },
-        { name: 'Crying', color: '#FF6B6B', values: crying }
+        { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
+        { name: 'Play', color: '#4ECDC4', values: playMins.map(m => Math.round((m / 60) * 10) / 10) },
+        { name: 'Crying', color: '#FF6B6B', values: cryingMins.map(m => Math.round((m / 60) * 10) / 10) }
       ]
     };
   }
 
-  // Week / Month view: Group by day
+  // Week / Month view: Group by day in Hours
   const { start, end } = getDateRange(period, referenceDate);
   const days = [];
   const curr = new Date(start);
@@ -475,7 +476,7 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
   }
 
   const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${d.getDate()}`);
-  const sleepHours = new Array(days.length).fill(0);
+  const sleepMins = new Array(days.length).fill(0);
   const playMins = new Array(days.length).fill(0);
   const cryingMins = new Array(days.length).fill(0);
 
@@ -491,7 +492,7 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
     const dur = a.duration || 0;
 
     if (a.eventType === 'sleep') {
-      sleepHours[idx] += Math.round(((dur > 0 ? dur : 60) / 60) * 10) / 10;
+      sleepMins[idx] += dur > 0 ? dur : 60;
     } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
       playMins[idx] += dur > 0 ? dur : 15;
     } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
@@ -501,16 +502,17 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
 
   return {
     labels: dayLabels,
+    unitSuffix: 'h',
     series: [
-      { name: 'Sleep', color: '#6C63FF', values: sleepHours },
-      { name: 'Play', color: '#4ECDC4', values: playMins },
-      { name: 'Crying', color: '#FF6B6B', values: cryingMins }
+      { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
+      { name: 'Play', color: '#4ECDC4', values: playMins.map(m => Math.round((m / 60) * 10) / 10) },
+      { name: 'Crying', color: '#FF6B6B', values: cryingMins.map(m => Math.round((m / 60) * 10) / 10) }
     ]
   };
 }
 
 /**
- * Render multi-series line timeline chart on canvas (for Feeds & Outputs)
+ * Render multi-series line timeline chart on canvas
  */
 export function renderMultiLineTimelineChart(canvas, chartData, options = {}) {
   if (!canvas) return;
@@ -521,9 +523,10 @@ export function renderMultiLineTimelineChart(canvas, chartData, options = {}) {
   canvas.height = rect.height * dpr;
   ctx.scale(dpr, dpr);
 
+  const unitSuffix = options.unitSuffix || chartData.unitSuffix || '';
   const width = rect.width;
   const height = rect.height;
-  const padding = { top: 16, right: 16, bottom: 28, left: 32 };
+  const padding = { top: 16, right: 16, bottom: 28, left: unitSuffix ? 36 : 30 };
   const chartWidth = width - padding.left - padding.right;
   const chartHeight = height - padding.top - padding.bottom;
 
@@ -574,7 +577,8 @@ export function renderMultiLineTimelineChart(canvas, chartData, options = {}) {
     ctx.font = '10px Inter, sans-serif';
     ctx.textAlign = 'right';
     const yVal = Math.round((maxVal / gridLines) * i);
-    ctx.fillText(yVal, padding.left - 5, y + 3);
+    const labelText = yVal === 0 ? '0' : `${yVal}${unitSuffix}`;
+    ctx.fillText(labelText, padding.left - 5, y + 3);
   }
 
   const gap = labels.length > 1 ? chartWidth / (labels.length - 1) : chartWidth;
