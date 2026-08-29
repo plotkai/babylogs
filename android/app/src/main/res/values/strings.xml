@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Babylogs</string>
+    <string name="title_activity_main">Babylogs</string>
+    <string name="package_name">in.plotkai.babylogs</string>
+    <string name="custom_url_scheme">in.plotkai.babylogs</string>
+    <string name="server_client_id">275565388851-qhhp364amhopj2q9sseiu3mqe47efio4.apps.googleusercontent.com</string>
+</resources>

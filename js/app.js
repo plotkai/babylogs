@@ -1,6 +1,6 @@
 // js/app.js — Main app logic, routing, UI rendering
 
-import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
+import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAdMobConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
 import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, shareSummaryText, inspectBackup } from './export.js';
@@ -451,8 +451,8 @@ async function renderMain() {
     </header>
 
     <div class="main-content">
-      <!-- Ad Banner -->
-      ${adConfig.enabled ? `
+      <!-- Ad Banner (Web Only) -->
+      ${adConfig.enabled && (!window.Capacitor || !window.Capacitor.isNativePlatform?.()) ? `
       <div class="ad-banner" id="ad-banner-slot">
         ${adConfig.adClient && adConfig.adSlotId ? `
           <ins class="adsbygoogle"
@@ -582,7 +582,44 @@ async function renderMain() {
   initAdBanner();
 }
 
+let admobInitialized = false;
+
+async function initNativeAdMob() {
+  if (typeof window === 'undefined' || !window.Capacitor || !window.Capacitor.isNativePlatform?.()) return;
+  if (admobInitialized) return;
+
+  const admobPlugin = window.Capacitor.Plugins?.AdMob;
+  if (!admobPlugin) return;
+
+  const admobConfig = getAdMobConfig();
+  if (!admobConfig || !admobConfig.enabled) return;
+
+  try {
+    await admobPlugin.initialize({
+      requestTrackingAuthorization: true,
+      initializeForTesting: admobConfig.isTesting !== false
+    });
+    admobInitialized = true;
+
+    await admobPlugin.showBanner({
+      adId: admobConfig.bannerAdId || 'ca-app-pub-3940256099942544/6300978111',
+      adSize: 'BANNER',
+      position: admobConfig.position || 'TOP_CENTER',
+      margin: 0,
+      isTesting: admobConfig.isTesting !== false
+    });
+    console.log('[AdMob] Native banner initialized & displayed');
+  } catch (err) {
+    console.warn('[AdMob] Init info:', err);
+  }
+}
+
 function initAdBanner() {
+  if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform?.()) {
+    initNativeAdMob();
+    return;
+  }
+
   try {
     const adEl = document.querySelector('#ad-banner-slot .adsbygoogle');
     if (adEl && !adEl.getAttribute('data-adsbygoogle-status')) {
@@ -1696,6 +1733,12 @@ async function saveActivity() {
       await addActivity(entry);
       showToast('Activity added ✓');
       trackActivityLogged(eventType, false);
+    }
+
+    // Reschedule offline alarm / notification for latest feed
+    const curSettings = getSettings();
+    if (curSettings.notificationsEnabled) {
+      startReminders(settings.activeBabyId);
     }
 
     // Auto-sync in background to Google Drive
@@ -2886,8 +2929,8 @@ async function renderSummary() {
     </header>
 
     <div class="summary-wrapper">
-      <!-- Ad Banner -->
-      ${adConfig.enabled ? `
+      <!-- Ad Banner (Web Only) -->
+      ${adConfig.enabled && (!window.Capacitor || !window.Capacitor.isNativePlatform?.()) ? `
       <div class="ad-banner" id="ad-banner-slot">
         ${adConfig.adClient && adConfig.adSlotId ? `
           <ins class="adsbygoogle"

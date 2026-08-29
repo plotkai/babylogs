@@ -102,9 +102,17 @@ class DriveSyncManager {
   }
 
   /**
+   * Check if running in native app
+   */
+  isNative() {
+    return typeof window !== 'undefined' && !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' && window.Capacitor.isNativePlatform());
+  }
+
+  /**
    * Check if Google Identity Services library is loaded
    */
   isGisLoaded() {
+    if (this.isNative()) return true;
     return typeof window !== 'undefined' && !!(window.google?.accounts?.oauth2);
   }
 
@@ -112,6 +120,7 @@ class DriveSyncManager {
    * Initialize GIS Token Client
    */
   async ensureTokenClient() {
+    if (this.isNative()) return null;
     if (this.tokenClient) return this.tokenClient;
 
     if (!this.hasValidClientId()) {
@@ -150,7 +159,7 @@ class DriveSyncManager {
   }
 
   /**
-   * Request Google Access Token via GIS popup / silent prompt
+   * Request Google Access Token via Native Google Auth on Android or GIS popup on Web
    * @param {boolean} promptExplicit - If true, displays the Google consent account chooser
    */
   async requestAccessToken(promptExplicit = false) {
@@ -166,6 +175,59 @@ class DriveSyncManager {
       throw err;
     }
 
+    // 1. Android Native Google Auth via Capacitor Plugin
+    if (this.isNative() && window.Capacitor?.Plugins?.GoogleAuth) {
+      try {
+        const GoogleAuth = window.Capacitor.Plugins.GoogleAuth;
+        const clientId = this.getClientId();
+        
+        try {
+          await GoogleAuth.initialize({
+            clientId: clientId,
+            scopes: ['profile', 'email', 'https://www.googleapis.com/auth/drive.file'],
+            grantOfflineAccess: false
+          });
+        } catch (initErr) {
+          console.debug('GoogleAuth init note:', initErr);
+        }
+
+        const authUser = await GoogleAuth.signIn();
+        const token = authUser.authentication?.accessToken || authUser.accessToken || authUser.idToken;
+        
+        if (!token) {
+          throw new Error('No access token returned from native Google Sign-In');
+        }
+
+        this.accessToken = token;
+        // Default expiry 1 hour if not specified
+        this.tokenExpiresAt = Date.now() + 3600 * 1000;
+
+        localStorage.setItem(STORAGE_AUTH_TOKEN, JSON.stringify({
+          token: this.accessToken,
+          expiresAt: this.tokenExpiresAt
+        }));
+
+        this.currentUser = {
+          email: authUser.email,
+          name: authUser.name || authUser.givenName || authUser.email,
+          picture: authUser.imageUrl || null
+        };
+        localStorage.setItem(STORAGE_AUTH_USER, JSON.stringify(this.currentUser));
+        this.notifyStatusChange();
+
+        // Background refresh profile details if needed
+        this.fetchUserProfile().catch(e => console.debug('Profile fetch deferred:', e));
+
+        return this.accessToken;
+      } catch (nativeErr) {
+        console.warn('Native Google sign-in failed:', nativeErr);
+        const err = new Error(nativeErr.message || 'Google Sign-In failed');
+        err.code = 'AUTH_ERROR';
+        throw err;
+      }
+    }
+
+    // 2. Web Browser Google Identity Services (GIS)
     const client = await this.ensureTokenClient();
 
     return new Promise((resolve, reject) => {
@@ -245,7 +307,13 @@ class DriveSyncManager {
    * Disconnect / Sign out from Google Drive sync
    */
   signOut(unlinkFile = false) {
-    if (this.accessToken && window.google?.accounts?.oauth2?.revoke) {
+    if (this.isNative() && window.Capacitor?.Plugins?.GoogleAuth) {
+      try {
+        window.Capacitor.Plugins.GoogleAuth.signOut();
+      } catch (e) {
+        console.debug('Native sign-out warning:', e);
+      }
+    } else if (this.accessToken && window.google?.accounts?.oauth2?.revoke) {
       try {
         window.google.accounts.oauth2.revoke(this.accessToken, () => {});
       } catch (e) {

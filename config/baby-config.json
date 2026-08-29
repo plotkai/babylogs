@@ -431,6 +431,12 @@
     "adClient": "ca-pub-3660780299197648",
     "placeholder": ""
   },
+  "admob": {
+    "enabled": true,
+    "bannerAdId": "ca-app-pub-3940256099942544/6300978111",
+    "isTesting": true,
+    "position": "TOP_CENTER"
+  },
   "app": {
     "title": "Babylogs by Plotkai",
     "version": "1.0.0",

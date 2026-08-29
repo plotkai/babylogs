@@ -70,8 +70,16 @@
   <!-- Google Identity Services (GIS) for Cloud Sync -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 
-  <!-- Google AdSense -->
-  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3660780299197648" crossorigin="anonymous"></script>
+  <!-- Google AdSense (Web browser only) -->
+  <script>
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform?.()) {
+      const adScript = document.createElement('script');
+      adScript.async = true;
+      adScript.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3660780299197648";
+      adScript.crossOrigin = "anonymous";
+      document.head.appendChild(adScript);
+    }
+  </script>
 
   <!-- Schema.org JSON-LD Structured Data for WebApplication & FAQs -->
   <script type="application/ld+json">

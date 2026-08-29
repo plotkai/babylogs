@@ -1,0 +1,24 @@
+{
+  "appId": "in.plotkai.babylogs",
+  "appName": "Babylogs",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon_config_sample",
+      "iconColor": "#7C5CFC",
+      "sound": "beep.wav"
+    },
+    "GoogleAuth": {
+      "scopes": [
+        "profile",
+        "email",
+        "https://www.googleapis.com/auth/drive.file"
+      ],
+      "serverClientId": "275565388851-qhhp364amhopj2q9sseiu3mqe47efio4.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": false
+    }
+  }
+}

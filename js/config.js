@@ -98,6 +98,18 @@ export function getAdBannerConfig() {
 }
 
 /**
+ * Get native AdMob configuration
+ */
+export function getAdMobConfig() {
+  return getConfig().admob || {
+    enabled: true,
+    bannerAdId: 'ca-app-pub-3940256099942544/6300978111',
+    isTesting: true,
+    position: 'TOP_CENTER'
+  };
+}
+
+/**
  * Get notification configuration
  */
 export function getNotificationConfig() {
@@ -220,6 +232,7 @@ function getDefaultConfig() {
     },
     notifications: { feedReminderDefault: 180, reminderOptions: [120, 180, 240] },
     adBanner: { enabled: true, height: '60px', adSlotId: '', adClient: '', placeholder: 'Ad Space' },
+    admob: { enabled: true, bannerAdId: 'ca-app-pub-3940256099942544/6300978111', isTesting: true, position: 'TOP_CENTER' },
     app: { title: 'Babylogs by Plotkai', version: '1.0.0' },
     googleDriveSync: {
       clientId: '275565388851-qhhp364amhopj2q9sseiu3mqe47efio4.apps.googleusercontent.com',

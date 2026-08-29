@@ -1,0 +1,22 @@
+{
+  "name": "babylogs",
+  "version": "1.0.0",
+  "description": "Offline-first private baby activity and milestone tracker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "cap:sync": "npm run build && npx cap sync",
+    "cap:android": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "^6.0.0",
+    "@capacitor/android": "^6.2.0",
+    "@capacitor/core": "^6.2.0",
+    "@capacitor/local-notifications": "^6.1.1",
+    "@codetrix-studio/capacitor-google-auth": "3.4.0-rc.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.2.0"
+  }
+}
