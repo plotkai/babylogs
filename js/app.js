@@ -44,6 +44,9 @@ async function init() {
   // Initialize Drive Sync Hooks & Auto-Sync
   initDriveSyncHooks();
 
+  // Initialize Screen Wake & App Resume Listeners (refreshes timeline gaps & timers live)
+  initAppResumeListeners();
+
   // Register service worker
   if ('serviceWorker' in navigator) {
     try {
@@ -93,7 +96,7 @@ function initDriveSyncHooks() {
     } else if (currentView === 'main') {
       // If modal is open, NEVER wipe DOM or close active logging modal!
       loadTimeline();
-      updateLastFeedCard();
+      updateFeedTimer();
       updateHeaderSyncIndicator();
     } else if (currentView === 'summary') {
       if (!isModalOpen) renderSummary();
@@ -128,6 +131,47 @@ function initDriveSyncHooks() {
       }).catch(err => console.debug('Initial sync deferred:', err));
     }, 1000);
   }
+}
+
+/**
+ * Automatically refresh timeline gaps, feed timer, and relative timestamps on app resume, focus, or screen wake
+ */
+function initAppResumeListeners() {
+  const onAppResume = () => {
+    if (document.visibilityState === 'visible') {
+      const modalOverlay = document.getElementById('modal-overlay');
+      const isModalOpen = modalOverlay && modalOverlay.classList.contains('active');
+
+      if (currentView === 'main') {
+        // Recalculate ongoing gap and refresh feed timer up to the exact current minute
+        if (isToday(currentDate) && !isModalOpen) {
+          loadTimeline();
+        }
+        updateFeedTimer();
+        updateHeaderSyncIndicator();
+      } else if (currentView === 'summary') {
+        if (!isModalOpen) renderSummary();
+      }
+    }
+  };
+
+  document.addEventListener('visibilitychange', onAppResume);
+  window.addEventListener('focus', onAppResume);
+  window.addEventListener('pageshow', onAppResume);
+
+  // Live periodic update: every 60s while app is on screen,
+  // update the ongoing activity gap and feed timer live
+  setInterval(() => {
+    if (document.visibilityState === 'visible') {
+      const modalOverlay = document.getElementById('modal-overlay');
+      const isModalOpen = modalOverlay && modalOverlay.classList.contains('active');
+
+      if (currentView === 'main' && isToday(currentDate) && !isModalOpen) {
+        loadTimeline();
+        updateFeedTimer();
+      }
+    }
+  }, 60000);
 }
 
 /**
