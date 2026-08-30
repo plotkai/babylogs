@@ -1480,7 +1480,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
       if (clampedMins > 0 && !isNaN(startDate.getTime())) {
         const endDate = calculateEndTime(startIso, clampedMins);
         const endFormatted = formatTime(endDate);
-        subtext.innerHTML = `<span>Starts <strong>${startFormatted}</strong></span> <span>→</span> <span>Ends <strong>${endFormatted}</strong> (${formatDuration(clampedMins)})</span>`;
+        subtext.innerHTML = `<span>Starts <strong>${startFormatted}</strong></span> <span>→</span> <span>Ends <strong>${endFormatted}</strong></span>`;
       } else {
         subtext.innerHTML = `<span>Time <strong>${startFormatted}</strong></span> <span>•</span> <span><em>Point in time log</em></span>`;
       }
