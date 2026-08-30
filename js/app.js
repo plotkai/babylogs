@@ -1010,46 +1010,57 @@ async function loadTimeline() {
   const timelineItems = [];
 
   if (gapThreshold > 0 && !currentEventFilter) {
+    let maxCoveredEndTime = 0;
+
     for (let i = 0; i < chronological.length; i++) {
       const act = chronological[i];
       timelineItems.push({ type: 'activity', data: act });
 
+      const actStartTime = new Date(act.startTime).getTime();
       const actEndTime = act.endTime
         ? new Date(act.endTime).getTime()
         : (act.duration > 0
           ? calculateEndTime(act.startTime, act.duration).getTime()
-          : new Date(act.startTime).getTime());
+          : actStartTime);
+
+      if (actEndTime > maxCoveredEndTime) {
+        maxCoveredEndTime = actEndTime;
+      }
 
       if (i < chronological.length - 1) {
         const nextAct = chronological[i + 1];
         const nextStartTime = new Date(nextAct.startTime).getTime();
 
-        const gapMs = nextStartTime - actEndTime;
-        const gapMinutes = Math.floor(gapMs / (60 * 1000));
+        if (nextStartTime > maxCoveredEndTime) {
+          const gapMs = nextStartTime - maxCoveredEndTime;
+          const gapMinutes = Math.floor(gapMs / (60 * 1000));
 
-        if (gapMinutes >= gapThreshold) {
-          timelineItems.push({
-            type: 'gap',
-            start: new Date(actEndTime),
-            end: new Date(nextStartTime),
-            duration: gapMinutes,
-            isOngoing: false
-          });
+          if (gapMinutes >= gapThreshold) {
+            timelineItems.push({
+              type: 'gap',
+              start: new Date(maxCoveredEndTime),
+              end: new Date(nextStartTime),
+              duration: gapMinutes,
+              isOngoing: false
+            });
+          }
         }
       } else if (viewingToday && i === chronological.length - 1) {
-        // Gap from last activity today up to NOW (current time) — never beyond current time
+        // Gap from latest covered activity time up to NOW (current time) — never beyond current time
         const nowTime = now.getTime();
-        const gapMs = nowTime - actEndTime;
-        const gapMinutes = Math.floor(gapMs / (60 * 1000));
+        if (nowTime > maxCoveredEndTime) {
+          const gapMs = nowTime - maxCoveredEndTime;
+          const gapMinutes = Math.floor(gapMs / (60 * 1000));
 
-        if (gapMinutes >= gapThreshold) {
-          timelineItems.push({
-            type: 'gap',
-            start: new Date(actEndTime),
-            end: now,
-            duration: gapMinutes,
-            isOngoing: true
-          });
+          if (gapMinutes >= gapThreshold) {
+            timelineItems.push({
+              type: 'gap',
+              start: new Date(maxCoveredEndTime),
+              end: now,
+              duration: gapMinutes,
+              isOngoing: true
+            });
+          }
         }
       }
     }
