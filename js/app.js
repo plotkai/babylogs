@@ -1037,10 +1037,18 @@ async function loadTimeline() {
   const allTypes = getAllActivityTypes();
   const gapThreshold = Number(settings.timelineGapThreshold !== undefined ? settings.timelineGapThreshold : 15);
 
-  // Chronological sort for calculating gaps
   const chronological = [...displayActivities].sort((a, b) => {
     return new Date(a.startTime).getTime() - new Date(b.startTime).getTime();
   });
+
+  function isExtensibleActivity(activity) {
+    if (!activity || !activity.eventType) return false;
+    const nonExtensible = ['poop', 'wet', 'diaper_change', 'weight_check', 'vaccination'];
+    const extensibleTypes = ['sleep', 'playtime', 'tummy_time', 'crying', 'breast_feed', 'formula_feed', 'express_feed'];
+    if (extensibleTypes.includes(activity.eventType)) return true;
+    const typeConfig = allTypes[activity.eventType];
+    return !nonExtensible.includes(activity.eventType) && (activity.duration > 0 || (typeConfig?.defaultDuration && typeConfig.defaultDuration > 0));
+  }
 
   const now = new Date();
   const viewingToday = isToday(currentDate);
@@ -1048,6 +1056,7 @@ async function loadTimeline() {
 
   if (gapThreshold > 0 && !currentEventFilter) {
     let maxCoveredEndTime = 0;
+    let lastCoveringActivity = null;
 
     for (let i = 0; i < chronological.length; i++) {
       const act = chronological[i];
@@ -1060,8 +1069,9 @@ async function loadTimeline() {
           ? calculateEndTime(act.startTime, act.duration).getTime()
           : actStartTime);
 
-      if (actEndTime > maxCoveredEndTime) {
+      if (actEndTime >= maxCoveredEndTime) {
         maxCoveredEndTime = actEndTime;
+        lastCoveringActivity = act;
       }
 
       if (i < chronological.length - 1) {
@@ -1095,7 +1105,8 @@ async function loadTimeline() {
               start: new Date(maxCoveredEndTime),
               end: now,
               duration: gapMinutes,
-              isOngoing: true
+              isOngoing: true,
+              lastActivity: lastCoveringActivity || act
             });
           }
         }
@@ -1199,6 +1210,11 @@ async function loadTimeline() {
   timeline.innerHTML = timelineItems.map((item, i) => {
     if (item.type === 'gap') {
       const gapStartIso = `${formatDateKey(item.start)}T${String(item.start.getHours()).padStart(2, '0')}:${String(item.start.getMinutes()).padStart(2, '0')}`;
+      const showExtendBtn = item.isOngoing && item.lastActivity && isExtensibleActivity(item.lastActivity);
+      const lastActConfig = showExtendBtn ? (allTypes[item.lastActivity.eventType] || {}) : null;
+      const lastActLabel = lastActConfig?.label || 'Activity';
+      const lastActEmoji = lastActConfig?.emoji || '⏱';
+
       return `
         <div class="timeline-gap" style="animation-delay: ${i * 0.03}s;">
           <div class="timeline-gap__stem">
@@ -1218,9 +1234,17 @@ async function loadTimeline() {
                 ${formatTime(item.start)} – ${item.isOngoing ? 'Now' : formatTime(item.end)}
               </div>
             </div>
-            <button class="timeline-gap__btn btn-log-gap" data-time="${gapStartIso}" title="Add activity during this gap">
-              ＋ Log Activity
-            </button>
+            <div class="timeline-gap__actions">
+              ${showExtendBtn ? `
+                <button class="timeline-gap__btn timeline-gap__btn--extend btn-extend-gap" data-id="${item.lastActivity.id}" title="Extend ${lastActLabel} to now">
+                  <span>${lastActEmoji}</span>
+                  <span>Extend ${lastActLabel}</span>
+                </button>
+              ` : ''}
+              <button class="timeline-gap__btn btn-log-gap" data-time="${gapStartIso}" title="Add activity during this gap">
+                ＋ Log Activity
+              </button>
+            </div>
           </div>
         </div>
       `;
@@ -1264,6 +1288,18 @@ async function loadTimeline() {
     card.addEventListener('touchmove', () => clearTimeout(pressTimer));
   });
 
+  // Bind extend gap button clicks
+  timeline.querySelectorAll('.btn-extend-gap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.id;
+      const activity = currentActivities.find(a => a.id === id);
+      if (activity) {
+        openActivityModal(activity, '', '', true);
+      }
+    });
+  });
+
   // Bind gap button clicks
   timeline.querySelectorAll('.btn-log-gap').forEach(btn => {
     btn.addEventListener('click', (e) => {
@@ -1295,14 +1331,17 @@ async function updateFeedTimer() {
 
 // ==================== ACTIVITY MODAL ====================
 
-function openActivityModal(activity = null, presetType = '', presetStartTime = '') {
+function openActivityModal(activity = null, presetType = '', presetStartTime = '', extendToNow = false) {
   editingActivity = activity;
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
   const body = document.getElementById('modal-body');
   const footer = document.getElementById('modal-footer');
 
-  title.textContent = activity ? 'Edit Activity' : 'Add Activity';
+  const typeConfig = activity ? getActivityType(activity.eventType) : null;
+  title.textContent = activity
+    ? (extendToNow ? `Extend ${typeConfig?.label || 'Activity'}` : 'Edit Activity')
+    : 'Add Activity';
 
   const categories = getActivityCategories();
   const settings = getSettings();
@@ -1322,9 +1361,18 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
     }
   }
 
-  const initialDuration = activity
-    ? (activity.duration ?? 0)
-    : (selectedType ? (getActivityDefaultDuration(selectedType, settings) ?? 15) : 15);
+  let initialDuration;
+  if (activity) {
+    if (extendToNow && activity.startTime) {
+      const startMs = new Date(activity.startTime).getTime();
+      const nowMs = now.getTime();
+      initialDuration = !isNaN(startMs) ? Math.max(0, Math.round((nowMs - startMs) / (60 * 1000))) : (activity.duration ?? 0);
+    } else {
+      initialDuration = activity.duration ?? 0;
+    }
+  } else {
+    initialDuration = selectedType ? (getActivityDefaultDuration(selectedType, settings) ?? 15) : 15;
+  }
 
   body.innerHTML = `
     <div class="form-group__row">
