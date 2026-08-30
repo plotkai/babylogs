@@ -1067,13 +1067,39 @@ async function loadTimeline() {
   function formatActivityTags(activity) {
     if (!activity.subFields) return '';
     const tags = [];
+    const volumeUnit = settings.unit?.volume || 'ml';
+    const weightUnit = settings.unit?.weight || 'kg';
+    const tempUnit = settings.unit?.temperature || '°F';
+    const typeConf = allTypes[activity.eventType];
+
     for (const [k, v] of Object.entries(activity.subFields)) {
       if (v === true) {
         tags.push(k === 'diaperChange' ? 'Diaper Changed' : k);
+      } else if (k === 'quantity' || k === 'amount') {
+        const valStr = String(v).trim();
+        const hasUnit = /\b(ml|oz|l|gm|g)\b/i.test(valStr);
+        tags.push(hasUnit ? valStr : `${valStr} ${volumeUnit}`);
+      } else if (k === 'weight') {
+        const valStr = String(v).trim();
+        const hasUnit = /\b(kg|lbs|lb|g)\b/i.test(valStr);
+        tags.push(hasUnit ? valStr : `${valStr} ${weightUnit}`);
+      } else if (k === 'temperature') {
+        const valStr = String(v).trim();
+        const hasUnit = /(°C|°F|C|F)/i.test(valStr);
+        tags.push(hasUnit ? valStr : `${valStr} ${tempUnit}`);
       } else if (typeof v === 'string' && v.trim()) {
         tags.push(v);
       } else if (typeof v === 'number') {
-        tags.push(`${v}`);
+        const fConfig = typeConf?.fields?.find(f => f.key === k);
+        if (fConfig?.unit === 'volume') {
+          tags.push(`${v} ${volumeUnit}`);
+        } else if (fConfig?.unit === 'weight') {
+          tags.push(`${v} ${weightUnit}`);
+        } else if (fConfig?.unit === 'temperature') {
+          tags.push(`${v} ${tempUnit}`);
+        } else {
+          tags.push(`${v}`);
+        }
       } else if (Array.isArray(v) && v.length > 0) {
         tags.push(...v);
       }

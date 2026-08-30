@@ -132,7 +132,9 @@ export function buildDisplayText(eventTypeConfig, subFields, unitSettings) {
           parts.push(val.join('/'));
         } else if (field.type === 'number' && field.unit) {
           const unit = unitSettings?.[field.unit]?.current || unitSettings?.[field.unit]?.default || '';
-          parts.push(`${val}${unit}`);
+          const valStr = String(val).trim();
+          const hasUnit = /\b(ml|oz|kg|lb|lbs|°C|°F)\b/i.test(valStr);
+          parts.push(hasUnit ? valStr : `${valStr} ${unit}`.trim());
         } else if (field.type === 'checkbox') {
           if (val === true) {
             parts.push(field.label);
