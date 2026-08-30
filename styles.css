@@ -3327,7 +3327,7 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   border-radius: var(--radius-md);
   margin-bottom: 12px;
   font-size: 12px;
-  line-height: 1.4;
+  line-height: 1.45;
   text-align: left;
 }
 
@@ -3337,10 +3337,21 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   color: #D35400;
 }
 
-.collab-alert-box--warning strong {
+.collab-alert-box__title {
   color: #E67E22;
+  font-weight: 700;
   display: block;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+}
+
+.collab-alert-box__text {
+  margin: 0;
+  line-height: 1.45;
+}
+
+.collab-alert-box strong {
+  display: inline;
+  font-weight: 700;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -3349,7 +3360,7 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
     border-color: rgba(243, 156, 18, 0.4);
     color: #F8C471;
   }
-  .collab-alert-box--warning strong {
+  .collab-alert-box__title {
     color: #F39C12;
   }
 }

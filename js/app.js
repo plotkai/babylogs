@@ -2069,10 +2069,10 @@ function openCollabModal(initialTab = 'auto') {
 
             ${syncInfo.isOutOfSync && syncInfo.state === 'auth_required' ? `
               <div class="collab-alert-box collab-alert-box--warning">
-                <div style="font-size: 18px; margin-top: 1px;">⚠️</div>
-                <div>
-                  <strong>Session Expired (${syncInfo.tokenStatusText || 'Needs Sync'})</strong>
-                  <span>Google security expires client tokens after 60 minutes. Tap <strong>Sync Now</strong> below to catch up with your partner.</span>
+                <div style="font-size: 18px; margin-top: 1px; flex-shrink: 0;">⚠️</div>
+                <div style="flex: 1;">
+                  <div class="collab-alert-box__title">Session Expired (${syncInfo.tokenStatusText || 'Needs Sync'})</div>
+                  <div class="collab-alert-box__text">Google security expires client tokens after 60 minutes. Tap <strong>Sync Now</strong> below to catch up with your partner.</div>
                 </div>
               </div>
             ` : (syncInfo.tokenStatusText ? `
