@@ -919,6 +919,14 @@ body {
   color: var(--color-text-muted);
 }
 
+.timeline-gap__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
 .timeline-gap__btn {
   background: var(--color-surface);
   border: 1px solid rgba(255, 118, 117, 0.4);
@@ -930,6 +938,9 @@ body {
   cursor: pointer;
   white-space: nowrap;
   transition: all var(--transition-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .timeline-gap__btn:hover {
@@ -939,6 +950,18 @@ body {
 
 .timeline-gap__btn:active {
   transform: scale(0.95);
+}
+
+.timeline-gap__btn--extend {
+  border-color: rgba(124, 92, 252, 0.5);
+  color: var(--color-primary);
+  background: var(--color-surface);
+}
+
+.timeline-gap__btn--extend:hover {
+  background: var(--color-primary) !important;
+  color: #FFFFFF !important;
+  border-color: var(--color-primary) !important;
 }
 
 /* Ongoing Active Gap Styling (Amber / Orange) */
@@ -955,12 +978,12 @@ body {
   background: #FF8000;
 }
 
-.timeline-gap__card--ongoing .timeline-gap__btn {
+.timeline-gap__card--ongoing .timeline-gap__btn:not(.timeline-gap__btn--extend) {
   border-color: rgba(255, 128, 0, 0.45);
   color: #D35400;
 }
 
-.timeline-gap__card--ongoing .timeline-gap__btn:hover {
+.timeline-gap__card--ongoing .timeline-gap__btn:not(.timeline-gap__btn--extend):hover {
   background: #FF8000;
   color: #FFFFFF;
 }
