@@ -2,7 +2,7 @@
 
 import { loadConfig, getConfig, getAllActivityTypes, getActivityType, getActivityCategories, getAdBannerConfig, getAdMobConfig, getAppConfig, getActivityDefaultDuration } from './config.js';
 import { getProfiles, addProfile, updateProfile, deleteProfile, getSettings, updateSetting, saveSettings, getActivitiesByDate, addActivity, updateActivity, deleteActivity, clearAllData, exportFilteredData, getSettings as getAppSettings, updateActivityDefaultDuration, resetDefaultDurations } from './db.js';
-import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
+import { generateId, formatTime, formatTimeRange, formatDateDisplay, formatDateFull, formatDateKey, formatDuration, calculateEndTime, splitActivityAcrossMidnight, buildDisplayText, getAgeString, isToday, isThisWeek, isThisMonth, formatWeekRange, formatMonthDisplay } from './utils.js';
 import { exportJSON, exportCSV, exportPDF, parseBackupFile, executeImport, shareBackup, inspectBackup } from './export.js';
 import { computeSummary, getDateRange, comparePerformance, renderBarChart, renderLineChart, renderWeekCareCalendar, renderMonthCareCalendar, buildFeedsOutputsTimelineData, buildSleepActivityTimelineData, renderGroupedTimelineChart, renderMultiLineTimelineChart } from './summary.js';
 import { startReminders, stopReminders, getLastFeedElapsed, requestPermission, isNotificationSupported } from './notifications.js';
@@ -1517,7 +1517,9 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
       if (clampedMins > 0 && !isNaN(startDate.getTime())) {
         const endDate = calculateEndTime(startIso, clampedMins);
         const endFormatted = formatTime(endDate);
-        subtext.innerHTML = `<span>Starts <strong>${startFormatted}</strong></span> <span>→</span> <span>Ends <strong>${endFormatted}</strong></span>`;
+        const crossesMidnight = formatDateKey(startDate) !== formatDateKey(endDate);
+        const nextDayBadge = crossesMidnight ? ` <span style="font-size: 10px; padding: 1px 5px; border-radius: 4px; background: rgba(124, 92, 252, 0.15); color: var(--color-primary); font-weight: 700;">+1d (splits at 12 AM)</span>` : '';
+        subtext.innerHTML = `<span>Starts <strong>${startFormatted}</strong></span> <span>→</span> <span>Ends <strong>${endFormatted}</strong>${nextDayBadge}</span>`;
       } else {
         subtext.innerHTML = `<span>Time <strong>${startFormatted}</strong></span> <span>•</span> <span><em>Point in time log</em></span>`;
       }
@@ -1766,14 +1768,23 @@ async function saveActivity() {
     updatedAt: new Date().toISOString()
   };
 
+  const segments = splitActivityAcrossMidnight(entry);
+
   try {
     if (editingActivity) {
-      await updateActivity(entry);
-      showToast('Activity updated ✓');
+      // First segment updates the existing activity
+      await updateActivity(segments[0]);
+      // Any subsequent segments (e.g. across 12 AM into next date) are saved as new activities
+      for (let i = 1; i < segments.length; i++) {
+        await addActivity(segments[i]);
+      }
+      showToast(segments.length > 1 ? 'Activity updated & split at 12 AM ✓' : 'Activity updated ✓');
       trackActivityLogged(eventType, true);
     } else {
-      await addActivity(entry);
-      showToast('Activity added ✓');
+      for (const seg of segments) {
+        await addActivity(seg);
+      }
+      showToast(segments.length > 1 ? 'Activity added & split at 12 AM ✓' : 'Activity added ✓');
       trackActivityLogged(eventType, false);
     }
 
