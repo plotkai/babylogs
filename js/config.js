@@ -147,8 +147,24 @@ function getDefaultConfig() {
         icon: '🍼',
         types: {
           breast_feed: { label: 'Breast Feed', color: '#7C5CFC', emoji: '🤱', defaultDuration: 15, fields: [] },
-          formula_feed: { label: 'Formula Feed', color: '#FF8FA3', emoji: '🍼', defaultDuration: 15, fields: [] },
-          express_feed: { label: 'Express Feed', color: '#FF9F43', emoji: '🥛', defaultDuration: 15, fields: [] }
+          formula_feed: {
+            label: 'Formula Feed',
+            color: '#FF8FA3',
+            emoji: '🍼',
+            defaultDuration: 15,
+            fields: [
+              { key: 'quantity', label: 'Quantity', type: 'number', unit: 'volume', required: true }
+            ]
+          },
+          express_feed: {
+            label: 'Express Feed',
+            color: '#FF9F43',
+            emoji: '🥛',
+            defaultDuration: 15,
+            fields: [
+              { key: 'quantity', label: 'Quantity', type: 'number', unit: 'volume', required: true }
+            ]
+          }
         }
       },
       output: {
