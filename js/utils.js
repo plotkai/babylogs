@@ -118,6 +118,70 @@ export function calculateEndTime(startTime, durationMinutes) {
 }
 
 /**
+ * Splits an activity into multiple contiguous segments if its duration crosses midnight (12 AM).
+ * Each segment receives the appropriate calendar date, startTime, endTime, and duration in minutes.
+ */
+export function splitActivityAcrossMidnight(entry) {
+  if (!entry || !entry.startTime || !entry.duration || entry.duration <= 0) {
+    return [entry];
+  }
+
+  const startObj = new Date(entry.startTime);
+  if (isNaN(startObj.getTime())) {
+    return [entry];
+  }
+
+  const endObj = calculateEndTime(entry.startTime, entry.duration);
+  const startDateKey = formatDateKey(startObj);
+  const endDateKey = formatDateKey(endObj);
+
+  // If start and end are on the same calendar day, no split needed
+  if (startDateKey === endDateKey) {
+    return [entry];
+  }
+
+  const segments = [];
+  let currentStart = new Date(startObj.getTime());
+  const finalEnd = endObj.getTime();
+
+  while (currentStart.getTime() < finalEnd) {
+    const curDateKey = formatDateKey(currentStart);
+    // Next midnight in local time (00:00:00 of following day)
+    const nextMidnight = new Date(
+      currentStart.getFullYear(),
+      currentStart.getMonth(),
+      currentStart.getDate() + 1,
+      0, 0, 0, 0
+    );
+
+    const segmentEndMs = Math.min(nextMidnight.getTime(), finalEnd);
+    const segmentDuration = Math.round((segmentEndMs - currentStart.getTime()) / (60 * 1000));
+
+    if (segmentDuration > 0) {
+      const startH = String(currentStart.getHours()).padStart(2, '0');
+      const startM = String(currentStart.getMinutes()).padStart(2, '0');
+      const segStartTime = `${curDateKey}T${startH}:${startM}`;
+      const segEndDate = new Date(segmentEndMs);
+
+      segments.push({
+        ...entry,
+        id: segments.length === 0 ? (entry.id || generateId()) : generateId(),
+        date: curDateKey,
+        startTime: segStartTime,
+        endTime: segEndDate.toISOString(),
+        duration: segmentDuration,
+        createdAt: segments.length === 0 ? (entry.createdAt || new Date().toISOString()) : new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    currentStart = nextMidnight;
+  }
+
+  return segments.length > 0 ? segments : [entry];
+}
+
+/**
  * Build display text for timeline from event type config and sub-field values
  * e.g. "Breast Feed - Right - Actively"
  */
