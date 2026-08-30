@@ -146,7 +146,16 @@ function getDefaultConfig() {
         label: 'Feeding',
         icon: '🍼',
         types: {
-          breast_feed: { label: 'Breast Feed', color: '#7C5CFC', emoji: '🤱', defaultDuration: 15, fields: [] },
+          breast_feed: {
+            label: 'Breast Feed',
+            color: '#7C5CFC',
+            emoji: '🤱',
+            defaultDuration: 15,
+            fields: [
+              { key: 'side', label: 'Side', type: 'select', default: 'Both', options: ['Left', 'Right', 'Both'], required: true },
+              { key: 'latchQuality', label: 'Latch Quality', type: 'select', default: 'Passively', options: ['Actively', 'Passively', 'Comfort'], required: false }
+            ]
+          },
           formula_feed: {
             label: 'Formula Feed',
             color: '#FF8FA3',
@@ -177,8 +186,8 @@ function getDefaultConfig() {
             emoji: '💩',
             defaultDuration: 5,
             fields: [
-              { key: 'color', label: 'Color', type: 'select', options: ["Yellow", "Green", "Brown", "Black", "Red"], required: false },
-              { key: 'consistency', label: 'Consistency', type: 'select', options: ["Watery", "Soft", "Formed", "Hard"], required: false },
+              { key: 'color', label: 'Color', type: 'select', default: 'Yellow', options: ["Yellow", "Green", "Brown", "Black", "Red"], required: false },
+              { key: 'consistency', label: 'Consistency', type: 'select', default: 'Soft', options: ["Watery", "Soft", "Formed", "Hard"], required: false },
               { key: 'diaperChange', label: 'Diaper Changed', type: 'checkbox', default: true, required: false }
             ]
           },
@@ -206,7 +215,15 @@ function getDefaultConfig() {
         label: 'Activity',
         icon: '🎈',
         types: {
-          sleep: { label: 'Sleep', color: '#6C63FF', emoji: '😴', defaultDuration: 60, fields: [] },
+          sleep: {
+            label: 'Sleep',
+            color: '#6C63FF',
+            emoji: '😴',
+            defaultDuration: 60,
+            fields: [
+              { key: 'quality', label: 'Quality', type: 'select', default: 'Deep', options: ['Deep', 'Light', 'Restless'], required: false }
+            ]
+          },
           tummy_time: { label: 'Tummy Time', color: '#4ECDC4', emoji: '🐣', defaultDuration: 10, fields: [] },
           playtime: {
             label: 'Playtime',
@@ -214,7 +231,7 @@ function getDefaultConfig() {
             emoji: '🎈',
             defaultDuration: 20,
             fields: [
-              { key: 'mood', label: 'Mood', type: 'select', options: ["Happy", "Calm", "Curious", "Playful", "Fussy", "Energetic", "Sleepy"], required: false }
+              { key: 'mood', label: 'Mood', type: 'select', default: 'Calm', options: ["Happy", "Calm", "Curious", "Playful", "Fussy", "Energetic", "Sleepy"], required: false }
             ]
           },
           crying: {

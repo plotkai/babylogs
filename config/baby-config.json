@@ -14,6 +14,7 @@
               "key": "side",
               "label": "Side",
               "type": "select",
+              "default": "Both",
               "options": [
                 "Left",
                 "Right",
@@ -25,6 +26,7 @@
               "key": "latchQuality",
               "label": "Latch Quality",
               "type": "select",
+              "default": "Passively",
               "options": [
                 "Actively",
                 "Passively",
@@ -80,6 +82,7 @@
               "key": "color",
               "label": "Color",
               "type": "select",
+              "default": "Yellow",
               "options": [
                 "Yellow",
                 "Green",
@@ -93,6 +96,7 @@
               "key": "consistency",
               "label": "Consistency",
               "type": "select",
+              "default": "Soft",
               "options": [
                 "Watery",
                 "Soft",
@@ -160,6 +164,7 @@
               "key": "quality",
               "label": "Quality",
               "type": "select",
+              "default": "Deep",
               "options": [
                 "Deep",
                 "Light",
@@ -186,6 +191,7 @@
               "key": "mood",
               "label": "Mood",
               "type": "select",
+              "default": "Calm",
               "options": [
                 "Happy",
                 "Calm",

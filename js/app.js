@@ -1624,7 +1624,9 @@ function renderDynamicFields(eventType, existingValues = {}) {
   const settings = getSettings();
 
   container.innerHTML = typeConfig.fields.map(field => {
-    const value = existingValues?.[field.key] || '';
+    const value = (existingValues && existingValues[field.key] !== undefined && existingValues[field.key] !== '')
+      ? existingValues[field.key]
+      : (field.default !== undefined ? field.default : '');
 
     if (field.type === 'select') {
       return `
@@ -1639,7 +1641,10 @@ function renderDynamicFields(eventType, existingValues = {}) {
     }
 
     if (field.type === 'multi-select') {
-      const selectedValues = Array.isArray(value) ? value : (value ? [value] : []);
+      const defaultVal = field.default ? (Array.isArray(field.default) ? field.default : [field.default]) : [];
+      const selectedValues = Array.isArray(value)
+        ? value
+        : (value ? [value] : defaultVal);
       return `
         <div class="form-group">
           <label class="form-group__label">${field.label}${field.required ? ' *' : ''}</label>
