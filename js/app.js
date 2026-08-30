@@ -2528,7 +2528,10 @@ function openExportModal() {
     const bounds = getSelectedExportBounds();
     trackDataExport('pdf', bounds.dateRangeLabel);
     closeModal();
-    exportPDF();
+    renderSummary();
+    setTimeout(() => {
+      exportPDF();
+    }, 300);
   });
 }
 

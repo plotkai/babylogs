@@ -3089,24 +3089,74 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 
 /* ==================== PRINT STYLES ==================== */
 @media print {
+  *, *::before, *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
   .header, .fab, .sidebar-overlay, .modal-overlay, .ad-banner,
   .baby-switcher, .date-nav, .last-feed-timer, .toast,
-  .summary__export-btns, .summary__period-tabs {
+  .summary__export-btns, .summary__period-tabs, .confirm-overlay,
+  .header__sync-btn, .header__menu-btn {
     display: none !important;
   }
 
   body {
-    background: #FFF;
-    color: #000;
+    background: #FFFFFF !important;
+    color: #111111 !important;
+    font-size: 12pt;
   }
 
-  .summary {
-    padding: 0;
+  .summary-wrapper, .summary {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
   }
 
   .summary__card {
-    box-shadow: none;
-    border: 1px solid #ddd;
+    background: #FFFFFF !important;
+    color: #111111 !important;
+    box-shadow: none !important;
+    border: 1px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    margin-bottom: 14px !important;
+    padding: 14px !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .summary__card-title {
+    color: #0F172A !important;
+  }
+
+  .summary__stat {
+    background: #F8FAFC !important;
+    border: 1px solid #E2E8F0 !important;
+  }
+
+  .summary__stat-value {
+    color: #0F172A !important;
+  }
+
+  .summary__stat-label {
+    color: #64748B !important;
+  }
+
+  .summary__chart {
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  .summary-chart-legend, .care-calendar__legend {
+    background: #F1F5F9 !important;
+    border: 1px solid #E2E8F0 !important;
+    color: #475569 !important;
+  }
+
+  .care-week-calendar, .care-month-calendar {
+    page-break-inside: avoid;
     break-inside: avoid;
   }
 }

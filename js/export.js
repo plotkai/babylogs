@@ -227,10 +227,53 @@ export function exportCSV(activities, babyName = 'all-babies', periodLabel = 'al
  */
 export function exportPDF() {
   document.body.classList.add('print-mode');
-  window.print();
-  setTimeout(() => {
+
+  // Convert all canvases to images so print engine renders them 100% reliably
+  const canvases = document.querySelectorAll('.summary canvas');
+  const tempImages = [];
+
+  canvases.forEach(canvas => {
+    try {
+      if (canvas.width > 0 && canvas.height > 0) {
+        const dataUrl = canvas.toDataURL('image/png');
+        const img = document.createElement('img');
+        img.src = dataUrl;
+        img.className = canvas.className;
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.maxHeight = '220px';
+        img.style.display = 'block';
+        img.dataset.printReplacement = 'true';
+
+        canvas.style.display = 'none';
+        canvas.parentNode.insertBefore(img, canvas.nextSibling);
+        tempImages.push({ canvas, img });
+      }
+    } catch (e) {
+      console.warn('Canvas to image failed:', e);
+    }
+  });
+
+  const cleanup = () => {
     document.body.classList.remove('print-mode');
-  }, 1000);
+    tempImages.forEach(({ canvas, img }) => {
+      canvas.style.display = '';
+      img.remove();
+    });
+    window.removeEventListener('afterprint', cleanup);
+  };
+
+  window.addEventListener('afterprint', cleanup);
+
+  // Trigger print cleanly
+  setTimeout(() => {
+    try {
+      window.print();
+    } catch (err) {
+      console.warn('Print error:', err);
+    }
+    setTimeout(cleanup, 2000);
+  }, 150);
 }
 
 /**
