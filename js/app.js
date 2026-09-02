@@ -3417,7 +3417,6 @@ async function loadSummaryData(period) {
         </div>
       `}
     </div>
-    ` : ''}
 
     <!-- Export -->
     <div class="summary__export-btns">
