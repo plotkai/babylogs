@@ -25,55 +25,60 @@ let babySwitcherOpen = false;
 // ==================== INITIALIZATION ====================
 
 async function init() {
-  // Capture PWA install prompt
-  window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredInstallPrompt = e;
-    updateInstallButtons();
-  });
+  try {
+    // Capture PWA install prompt
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredInstallPrompt = e;
+      updateInstallButtons();
+    });
 
-  window.addEventListener('appinstalled', () => {
-    deferredInstallPrompt = null;
-    updateInstallButtons();
-    showToast('App installed successfully! 🎉');
-  });
+    window.addEventListener('appinstalled', () => {
+      deferredInstallPrompt = null;
+      updateInstallButtons();
+      showToast('App installed successfully! 🎉');
+    });
 
-  // Load config
-  await loadConfig();
+    // Load config
+    await loadConfig();
 
-  // Initialize Drive Sync Hooks & Auto-Sync
-  initDriveSyncHooks();
+    // Initialize Drive Sync Hooks & Auto-Sync
+    initDriveSyncHooks();
 
-  // Initialize Screen Wake & App Resume Listeners (refreshes timeline gaps & timers live)
-  initAppResumeListeners();
+    // Initialize Screen Wake & App Resume Listeners (refreshes timeline gaps & timers live)
+    initAppResumeListeners();
 
-  // Register service worker
-  if ('serviceWorker' in navigator) {
-    try {
-      await navigator.serviceWorker.register('./sw.js');
-    } catch (err) {
-      console.warn('SW registration failed:', err);
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      try {
+        await navigator.serviceWorker.register('./sw.js');
+      } catch (err) {
+        console.warn('SW registration failed:', err);
+      }
     }
-  }
 
-  // Determine initial view
-  const profiles = getProfiles();
-  if (profiles.length === 0) {
+    // Determine initial view
+    const profiles = getProfiles();
+    if (profiles.length === 0) {
+      renderWelcome();
+    } else {
+      // Ensure active baby is set
+      const settings = getSettings();
+      if (!settings.activeBabyId || !profiles.find(p => p.id === settings.activeBabyId)) {
+        updateSetting('activeBabyId', profiles[0].id);
+      }
+      renderMain();
+    }
+
+    // Check incoming Web Share Target or File Handling API ("Open With Babylogs")
+    checkIncomingSharedBackup();
+
+    // Check incoming deep link with ?syncId=...
+    checkIncomingSyncId();
+  } catch (err) {
+    console.error('Fatal initialization error:', err);
     renderWelcome();
-  } else {
-    // Ensure active baby is set
-    const settings = getSettings();
-    if (!settings.activeBabyId || !profiles.find(p => p.id === settings.activeBabyId)) {
-      updateSetting('activeBabyId', profiles[0].id);
-    }
-    renderMain();
   }
-
-  // Check incoming Web Share Target or File Handling API ("Open With Babylogs")
-  checkIncomingSharedBackup();
-
-  // Check incoming deep link with ?syncId=...
-  checkIncomingSyncId();
 }
 
 /**
@@ -258,7 +263,7 @@ function checkIncomingSyncId() {
  */
 async function checkIncomingSharedBackup() {
   // 1. File Handling API (Desktop / Android "Open with Babylogs")
-  if ('launchQueue' in window && 'files' in LaunchParams.prototype) {
+  if ('launchQueue' in window && typeof LaunchParams !== 'undefined' && 'files' in LaunchParams.prototype) {
     launchQueue.setConsumer(async (launchParams) => {
       if (launchParams.files && launchParams.files.length > 0) {
         try {
@@ -3997,4 +4002,8 @@ function showToast(message) {
 
 // ==================== BOOT ====================
 
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
