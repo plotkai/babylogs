@@ -346,43 +346,6 @@ export function comparePerformance(summary, dob, period = 'day', isCurrent = fal
 }
 
 /**
- * Build timeline dataset for Feeds & Outputs combined across time
- */
-export function buildFeedsOutputsTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
-  if (period === 'day') {
-    const labels = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
-    const feeds = new Array(12).fill(0);
-    const wet = new Array(12).fill(0);
-    const poop = new Array(12).fill(0);
-
-    activities.forEach(a => {
-      const d = new Date(a.startTime);
-      if (isNaN(d.getTime())) return;
-      const h = d.getHours();
-      const bin = Math.min(11, Math.floor(h / 2));
-
-      if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
-        feeds[bin]++;
-      } else if (a.eventType === 'wet') {
-        wet[bin]++;
-      } else if (a.eventType === 'poop') {
-        poop[bin]++;
-      } else if (a.eventType === 'diaper_change') {
-        const dt = a.subFields?.diaperType || a.diaperType;
-        const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
-        let hasType = false;
-        list.forEach(t => {
-          const l = String(t).toLowerCase();
-          if (l.includes('wet')) { wet[bin]++; hasType = true; }
-          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[bin]++; hasType = true; }
-        });
-        if (!hasType) {
-          wet[bin]++;
-        }
-      }
-    });
-
-/**
  * Helper to compute adaptive timeline bins based on period and total time span
  */
 function getAdaptiveTimelineBins(activities, period, referenceDate) {
