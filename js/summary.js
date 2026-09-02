@@ -382,30 +382,24 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
       }
     });
 
+/**
+ * Helper to compute adaptive timeline bins based on period and total time span
+ */
+function getAdaptiveTimelineBins(activities, period, referenceDate) {
+  if (period === 'day') {
     return {
-      labels,
-      series: [
-        { name: 'Feeds', color: '#7C5CFC', values: feeds },
-        { name: 'Wet', color: '#4A90D9', values: wet },
-        { name: 'Poop', color: '#A0522D', values: poop }
-      ]
+      type: 'day_2h',
+      labels: ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'],
+      binCount: 12
     };
   }
 
-  // Week / Month / All Time view
   let start, end;
   if (period === 'all') {
     if (!activities || activities.length === 0) {
-      return {
-        labels: [],
-        series: [
-          { name: 'Feeds', color: '#7C5CFC', values: [] },
-          { name: 'Wet', color: '#4A90D9', values: [] },
-          { name: 'Poop', color: '#A0522D', values: [] }
-        ]
-      };
+      return { type: 'empty', labels: [], binCount: 0 };
     }
-    const sortedActs = [...activities].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    const sortedActs = [...activities].sort((a, b) => new Date(a.startTime || a.date) - new Date(b.startTime || b.date));
     const first = new Date(sortedActs[0].date || sortedActs[0].startTime);
     first.setHours(0, 0, 0, 0);
     const last = new Date(sortedActs[sortedActs.length - 1].date || sortedActs[sortedActs.length - 1].startTime);
@@ -419,9 +413,69 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
   }
 
   const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+  const spanMonths = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth()) + 1;
 
-  if (spanDays > 31 && period === 'all') {
-    // Group by month for long spans in All Time view
+  // Decide binning strategy:
+  // 1) Day view / Week view / Month view or All-time under 60 days (~2 months) -> Daily bins
+  if (period === 'week' || period === 'month' || (period === 'all' && (spanMonths <= 2 || spanDays <= 60))) {
+    const days = [];
+    const curr = new Date(start);
+    while (curr <= end) {
+      days.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
+    const labels = days.map(d => {
+      if (period === 'week') {
+        return ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+      }
+      if (period === 'month') {
+        return `${d.getDate()}`;
+      }
+      // All time <= 60 days
+      return `${d.getMonth() + 1}/${d.getDate()}`;
+    });
+    const keyMap = {};
+    days.forEach((d, idx) => {
+      keyMap[formatDateKey(d)] = idx;
+    });
+
+    return {
+      type: 'daily',
+      days,
+      labels,
+      keyMap,
+      binCount: days.length,
+      getBinIndex: (d) => keyMap[formatDateKey(d)]
+    };
+  }
+
+  // 2) All-time spanning 3 to 6 months (61 to 180 days) -> Weekly bins (7-day intervals)
+  if (period === 'all' && (spanMonths <= 6 || spanDays <= 180)) {
+    const weeks = [];
+    const curr = new Date(start);
+    while (curr <= end) {
+      const wStart = new Date(curr);
+      const wEnd = new Date(curr);
+      wEnd.setDate(wEnd.getDate() + 6);
+      wEnd.setHours(23, 59, 59, 999);
+      weeks.push({ start: wStart, end: wEnd });
+      curr.setDate(curr.getDate() + 7);
+    }
+    const labels = weeks.map(w => `${w.start.getMonth() + 1}/${w.start.getDate()}`);
+    return {
+      type: 'weekly',
+      weeks,
+      labels,
+      binCount: weeks.length,
+      getBinIndex: (d) => {
+        const time = d.getTime();
+        return weeks.findIndex(w => time >= w.start.getTime() && time <= w.end.getTime());
+      }
+    };
+  }
+
+  // 3) All-time spanning 7 to 24 months -> Monthly bins
+  if (period === 'all' && spanMonths <= 24) {
     const months = [];
     const currM = new Date(start.getFullYear(), start.getMonth(), 1);
     const endM = new Date(end.getFullYear(), end.getMonth(), 1);
@@ -429,100 +483,121 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
       months.push(new Date(currM));
       currM.setMonth(currM.getMonth() + 1);
     }
-    const monthLabels = months.map(m => m.toLocaleDateString(undefined, { month: 'short' }) + (months.length > 12 ? ` '${String(m.getFullYear()).slice(2)}` : ''));
-    const feeds = new Array(months.length).fill(0);
-    const wet = new Array(months.length).fill(0);
-    const poop = new Array(months.length).fill(0);
+    const labels = months.map(m => m.toLocaleDateString(undefined, { month: 'short' }) + (spanMonths > 12 ? ` '${String(m.getFullYear()).slice(2)}` : ''));
     const monthKeyMap = {};
     months.forEach((m, idx) => {
       const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
       monthKeyMap[key] = idx;
     });
 
+    return {
+      type: 'monthly',
+      months,
+      labels,
+      monthKeyMap,
+      binCount: months.length,
+      getBinIndex: (d) => {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        return monthKeyMap[key];
+      }
+    };
+  }
+
+  // 4) All-time spanning > 24 months (> 2 years) -> Quarterly bins
+  const quarters = [];
+  const currQ = new Date(start.getFullYear(), Math.floor(start.getMonth() / 3) * 3, 1);
+  const endQ = new Date(end.getFullYear(), Math.floor(end.getMonth() / 3) * 3, 1);
+  while (currQ <= endQ) {
+    quarters.push(new Date(currQ));
+    currQ.setMonth(currQ.getMonth() + 3);
+  }
+  const labels = quarters.map(q => `Q${Math.floor(q.getMonth() / 3) + 1} '${String(q.getFullYear()).slice(2)}`);
+  return {
+    type: 'quarterly',
+    quarters,
+    labels,
+    binCount: quarters.length,
+    getBinIndex: (d) => {
+      const qStart = new Date(d.getFullYear(), Math.floor(d.getMonth() / 3) * 3, 1);
+      return quarters.findIndex(q => q.getFullYear() === qStart.getFullYear() && q.getMonth() === qStart.getMonth());
+    }
+  };
+}
+
+/**
+ * Build timeline dataset for Feeds, Wet & Poop combined across time
+ */
+export function buildFeedsOutputsTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
+  const bins = getAdaptiveTimelineBins(activities, period, referenceDate);
+  if (bins.type === 'empty' || bins.binCount === 0) {
+    return {
+      labels: [],
+      series: [
+        { name: 'Feeds', color: '#7C5CFC', values: [] },
+        { name: 'Wet', color: '#4A90D9', values: [] },
+        { name: 'Poop', color: '#A0522D', values: [] }
+      ]
+    };
+  }
+
+  const feeds = new Array(bins.binCount).fill(0);
+  const wet = new Array(bins.binCount).fill(0);
+  const poop = new Array(bins.binCount).fill(0);
+
+  if (bins.type === 'day_2h') {
     activities.forEach(a => {
-      const d = new Date(a.date || a.startTime);
+      const d = new Date(a.startTime);
       if (isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const idx = monthKeyMap[key];
-      if (idx === undefined) return;
+      const h = d.getHours();
+      const bin = Math.min(11, Math.floor(h / 2));
 
       if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
-        feeds[idx]++;
+        feeds[bin]++;
       } else if (a.eventType === 'wet') {
-        wet[idx]++;
+        wet[bin]++;
       } else if (a.eventType === 'poop') {
-        poop[idx]++;
+        poop[bin]++;
       } else if (a.eventType === 'diaper_change') {
         const dt = a.subFields?.diaperType || a.diaperType;
         const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
         let hasType = false;
         list.forEach(t => {
           const l = String(t).toLowerCase();
-          if (l.includes('wet')) { wet[idx]++; hasType = true; }
-          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[idx]++; hasType = true; }
+          if (l.includes('wet')) { wet[bin]++; hasType = true; }
+          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[bin]++; hasType = true; }
         });
-        if (!hasType) {
-          wet[idx]++;
-        }
+        if (!hasType) wet[bin]++;
       }
     });
+  } else {
+    activities.forEach(a => {
+      const d = new Date(a.date || a.startTime);
+      if (isNaN(d.getTime())) return;
+      const bin = bins.getBinIndex(d);
+      if (bin === undefined || bin === -1) return;
 
-    return {
-      labels: monthLabels,
-      series: [
-        { name: 'Feeds', color: '#7C5CFC', values: feeds },
-        { name: 'Wet', color: '#4A90D9', values: wet },
-        { name: 'Poop', color: '#A0522D', values: poop }
-      ]
-    };
-  }
-
-  // Daily grouping
-  const days = [];
-  const curr = new Date(start);
-  while (curr <= end) {
-    days.push(new Date(curr));
-    curr.setDate(curr.getDate() + 1);
-  }
-
-  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : (period === 'month' ? `${d.getDate()}` : `${d.getMonth() + 1}/${d.getDate()}`));
-  const feeds = new Array(days.length).fill(0);
-  const wet = new Array(days.length).fill(0);
-  const poop = new Array(days.length).fill(0);
-
-  const dayKeyMap = {};
-  days.forEach((d, idx) => {
-    dayKeyMap[formatDateKey(d)] = idx;
-  });
-
-  activities.forEach(a => {
-    const key = a.date || formatDateKey(new Date(a.startTime));
-    const idx = dayKeyMap[key];
-    if (idx === undefined) return;
-
-    if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
-      feeds[idx]++;
-    } else if (a.eventType === 'wet') {
-      wet[idx]++;
-    } else if (a.eventType === 'poop') {
-      poop[idx]++;
-    } else if (a.eventType === 'diaper_change') {
-      const dt = a.subFields?.diaperType || a.diaperType;
-      const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
-      let hasType = false;
-      list.forEach(t => {
-        const l = String(t).toLowerCase();
-        if (l.includes('wet')) { wet[idx]++; hasType = true; }
-        if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[idx]++; hasType = true; }
-      });
-      if (!hasType) {
-        wet[idx]++;
+      if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
+        feeds[bin]++;
+      } else if (a.eventType === 'wet') {
+        wet[bin]++;
+      } else if (a.eventType === 'poop') {
+        poop[bin]++;
+      } else if (a.eventType === 'diaper_change') {
+        const dt = a.subFields?.diaperType || a.diaperType;
+        const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
+        let hasType = false;
+        list.forEach(t => {
+          const l = String(t).toLowerCase();
+          if (l.includes('wet')) { wet[bin]++; hasType = true; }
+          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[bin]++; hasType = true; }
+        });
+        if (!hasType) wet[bin]++;
       }
-    }
-  });
+    });
+  }
 
   return {
-    labels: dayLabels,
+    labels: bins.labels,
     series: [
       { name: 'Feeds', color: '#7C5CFC', values: feeds },
       { name: 'Wet', color: '#4A90D9', values: wet },
@@ -535,12 +610,24 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
  * Build timeline dataset for Sleep, Playtime & Crying combined across time (in Hours)
  */
 export function buildSleepActivityTimelineData(activities = [], period = 'day', referenceDate = new Date()) {
-  if (period === 'day') {
-    const labels = ['12a', '2a', '4a', '6a', '8a', '10a', '12p', '2p', '4p', '6p', '8p', '10p'];
-    const sleepMins = new Array(12).fill(0);
-    const playMins = new Array(12).fill(0);
-    const cryingMins = new Array(12).fill(0);
+  const bins = getAdaptiveTimelineBins(activities, period, referenceDate);
+  if (bins.type === 'empty' || bins.binCount === 0) {
+    return {
+      labels: [],
+      unitSuffix: 'h',
+      series: [
+        { name: 'Sleep', color: '#6C63FF', values: [] },
+        { name: 'Play', color: '#4ECDC4', values: [] },
+        { name: 'Crying', color: '#FF6B6B', values: [] }
+      ]
+    };
+  }
 
+  const sleepMins = new Array(bins.binCount).fill(0);
+  const playMins = new Array(bins.binCount).fill(0);
+  const cryingMins = new Array(bins.binCount).fill(0);
+
+  if (bins.type === 'day_2h') {
     activities.forEach(a => {
       const d = new Date(a.startTime);
       if (isNaN(d.getTime())) return;
@@ -556,129 +643,26 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
         cryingMins[bin] += dur > 0 ? dur : 10;
       }
     });
-
-    return {
-      labels,
-      unitSuffix: 'h',
-      series: [
-        { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
-        { name: 'Play', color: '#4ECDC4', values: playMins.map(m => Math.round((m / 60) * 10) / 10) },
-        { name: 'Crying', color: '#FF6B6B', values: cryingMins.map(m => Math.round((m / 60) * 10) / 10) }
-      ]
-    };
-  }
-
-  // Week / Month / All Time view: Group by day or month in Hours
-  let start, end;
-  if (period === 'all') {
-    if (!activities || activities.length === 0) {
-      return {
-        labels: [],
-        unitSuffix: 'h',
-        series: [
-          { name: 'Sleep', color: '#6C63FF', values: [] },
-          { name: 'Play', color: '#4ECDC4', values: [] },
-          { name: 'Crying', color: '#FF6B6B', values: [] }
-        ]
-      };
-    }
-    const sortedActs = [...activities].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
-    const first = new Date(sortedActs[0].date || sortedActs[0].startTime);
-    first.setHours(0, 0, 0, 0);
-    const last = new Date(sortedActs[sortedActs.length - 1].date || sortedActs[sortedActs.length - 1].startTime);
-    last.setHours(23, 59, 59, 999);
-    start = first;
-    end = last;
   } else {
-    const range = getDateRange(period, referenceDate);
-    start = range.start;
-    end = range.end;
-  }
-
-  const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
-
-  if (spanDays > 31 && period === 'all') {
-    // Group by month for long spans in All Time view
-    const months = [];
-    const currM = new Date(start.getFullYear(), start.getMonth(), 1);
-    const endM = new Date(end.getFullYear(), end.getMonth(), 1);
-    while (currM <= endM) {
-      months.push(new Date(currM));
-      currM.setMonth(currM.getMonth() + 1);
-    }
-    const monthLabels = months.map(m => m.toLocaleDateString(undefined, { month: 'short' }) + (months.length > 12 ? ` '${String(m.getFullYear()).slice(2)}` : ''));
-    const sleepMins = new Array(months.length).fill(0);
-    const playMins = new Array(months.length).fill(0);
-    const cryingMins = new Array(months.length).fill(0);
-    const monthKeyMap = {};
-    months.forEach((m, idx) => {
-      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
-      monthKeyMap[key] = idx;
-    });
-
     activities.forEach(a => {
       const d = new Date(a.date || a.startTime);
       if (isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const idx = monthKeyMap[key];
-      if (idx === undefined) return;
+      const bin = bins.getBinIndex(d);
+      if (bin === undefined || bin === -1) return;
       const dur = a.duration || 0;
 
       if (a.eventType === 'sleep') {
-        sleepMins[idx] += dur > 0 ? dur : 60;
+        sleepMins[bin] += dur > 0 ? dur : 60;
       } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
-        playMins[idx] += dur > 0 ? dur : 15;
+        playMins[bin] += dur > 0 ? dur : 15;
       } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
-        cryingMins[idx] += dur > 0 ? dur : 10;
+        cryingMins[bin] += dur > 0 ? dur : 10;
       }
     });
-
-    return {
-      labels: monthLabels,
-      unitSuffix: 'h',
-      series: [
-        { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
-        { name: 'Play', color: '#4ECDC4', values: playMins.map(m => Math.round((m / 60) * 10) / 10) },
-        { name: 'Crying', color: '#FF6B6B', values: cryingMins.map(m => Math.round((m / 60) * 10) / 10) }
-      ]
-    };
   }
-
-  // Daily grouping
-  const days = [];
-  const curr = new Date(start);
-  while (curr <= end) {
-    days.push(new Date(curr));
-    curr.setDate(curr.getDate() + 1);
-  }
-
-  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : (period === 'month' ? `${d.getDate()}` : `${d.getMonth() + 1}/${d.getDate()}`));
-  const sleepMins = new Array(days.length).fill(0);
-  const playMins = new Array(days.length).fill(0);
-  const cryingMins = new Array(days.length).fill(0);
-
-  const dayKeyMap = {};
-  days.forEach((d, idx) => {
-    dayKeyMap[formatDateKey(d)] = idx;
-  });
-
-  activities.forEach(a => {
-    const key = a.date || formatDateKey(new Date(a.startTime));
-    const idx = dayKeyMap[key];
-    if (idx === undefined) return;
-    const dur = a.duration || 0;
-
-    if (a.eventType === 'sleep') {
-      sleepMins[idx] += dur > 0 ? dur : 60;
-    } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
-      playMins[idx] += dur > 0 ? dur : 15;
-    } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
-      cryingMins[idx] += dur > 0 ? dur : 10;
-    }
-  });
 
   return {
-    labels: dayLabels,
+    labels: bins.labels,
     unitSuffix: 'h',
     series: [
       { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
@@ -806,14 +790,15 @@ export function renderMultiLineTimelineChart(canvas, chartData, options = {}) {
     });
   });
 
-  // X-axis labels with decimation for large counts (e.g. Month view)
-  const isMonth = labels.length > 20;
+  // Dynamic X-axis label decimation based on available chart width
+  const maxLabels = Math.max(4, Math.min(10, Math.floor(chartWidth / 42)));
+  const step = labels.length > maxLabels ? Math.ceil(labels.length / maxLabels) : 1;
+
   labels.forEach((label, i) => {
-    let shouldShow = true;
-    if (isMonth) {
-      const dayNum = parseInt(label) || (i + 1);
-      shouldShow = dayNum === 1 || dayNum % 5 === 0 || i === labels.length - 1;
-    }
+    const isFirst = i === 0;
+    const isLast = i === labels.length - 1;
+    const isStep = i % step === 0;
+    const shouldShow = isStep || isFirst || (isLast && (i % step >= Math.floor(step / 2) || step === 1));
 
     if (shouldShow) {
       ctx.fillStyle = isDark ? '#888' : '#666';
@@ -898,7 +883,8 @@ export function renderGroupedTimelineChart(canvas, chartData) {
   const barWidth = Math.max(2, Math.min((groupWidth * 0.75) / numSeries, 10));
   const totalBarsWidth = barWidth * numSeries;
 
-  const isMonth = labels.length > 20;
+  const maxLabels = Math.max(4, Math.min(10, Math.floor(chartWidth / 42)));
+  const step = labels.length > maxLabels ? Math.ceil(labels.length / maxLabels) : 1;
 
   labels.forEach((label, binIdx) => {
     const groupCenterX = padding.left + groupWidth * binIdx + groupWidth / 2;
@@ -925,12 +911,11 @@ export function renderGroupedTimelineChart(canvas, chartData) {
       }
     });
 
-    // X-axis label with decimation for month view
-    let shouldShow = true;
-    if (isMonth) {
-      const dayNum = parseInt(label) || (binIdx + 1);
-      shouldShow = dayNum === 1 || dayNum % 5 === 0 || binIdx === labels.length - 1;
-    }
+    // Dynamic X-axis label decimation
+    const isFirst = binIdx === 0;
+    const isLast = binIdx === labels.length - 1;
+    const isStep = binIdx % step === 0;
+    const shouldShow = isStep || isFirst || (isLast && (binIdx % step >= Math.floor(step / 2) || step === 1));
 
     if (shouldShow) {
       ctx.fillStyle = isDark ? '#888' : '#666';
