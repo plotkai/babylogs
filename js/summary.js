@@ -1,6 +1,6 @@
 // js/summary.js — Summary analytics computation & chart rendering
 
-import { getActivitiesByRange } from './db.js';
+import { getActivitiesByRange, getAllActivities } from './db.js';
 import { getExpectedPerformance, getUnitsConfig } from './config.js';
 import { formatDateKey, getAgeBracket, startOfWeek, startOfMonth } from './utils.js';
 import { getSettings } from './db.js';
@@ -9,12 +9,26 @@ import { getSettings } from './db.js';
  * Compute summary statistics for a baby over a date range
  */
 export async function computeSummary(babyId, startDate, endDate) {
-  const startKey = formatDateKey(startDate);
-  const endKey = formatDateKey(endDate);
-  const activities = await getActivitiesByRange(babyId, startKey, endKey);
+  let activities;
+  let dayCount;
 
-  // Calculate exact number of days in range
-  const dayCount = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  if (!startDate || !endDate) {
+    activities = await getAllActivities(babyId);
+    activities.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    if (activities.length > 0) {
+      const firstDate = new Date(activities[0].date || activities[0].startTime);
+      const lastDate = new Date(activities[activities.length - 1].date || activities[activities.length - 1].startTime);
+      dayCount = Math.max(1, Math.round((lastDate.getTime() - firstDate.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+    } else {
+      dayCount = 1;
+    }
+  } else {
+    const startKey = formatDateKey(startDate);
+    const endKey = formatDateKey(endDate);
+    activities = await getActivitiesByRange(babyId, startKey, endKey);
+    // Calculate exact number of days in range
+    dayCount = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)));
+  }
 
   const summary = {
     totalActivities: activities.length,
@@ -236,6 +250,10 @@ export function getDateRange(periodType, referenceDate) {
       end.setDate(0);
       end.setHours(23, 59, 59, 999);
       break;
+    case 'all':
+      start = null;
+      end = null;
+      break;
     default:
       start = new Date(ref);
       start.setHours(0, 0, 0, 0);
@@ -374,8 +392,92 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
     };
   }
 
-  // Week / Month view: Group by day
-  const { start, end } = getDateRange(period, referenceDate);
+  // Week / Month / All Time view
+  let start, end;
+  if (period === 'all') {
+    if (!activities || activities.length === 0) {
+      return {
+        labels: [],
+        series: [
+          { name: 'Feeds', color: '#7C5CFC', values: [] },
+          { name: 'Wet', color: '#4A90D9', values: [] },
+          { name: 'Poop', color: '#A0522D', values: [] }
+        ]
+      };
+    }
+    const sortedActs = [...activities].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    const first = new Date(sortedActs[0].date || sortedActs[0].startTime);
+    first.setHours(0, 0, 0, 0);
+    const last = new Date(sortedActs[sortedActs.length - 1].date || sortedActs[sortedActs.length - 1].startTime);
+    last.setHours(23, 59, 59, 999);
+    start = first;
+    end = last;
+  } else {
+    const range = getDateRange(period, referenceDate);
+    start = range.start;
+    end = range.end;
+  }
+
+  const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+  if (spanDays > 31 && period === 'all') {
+    // Group by month for long spans in All Time view
+    const months = [];
+    const currM = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endM = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (currM <= endM) {
+      months.push(new Date(currM));
+      currM.setMonth(currM.getMonth() + 1);
+    }
+    const monthLabels = months.map(m => m.toLocaleDateString(undefined, { month: 'short' }) + (months.length > 12 ? ` '${String(m.getFullYear()).slice(2)}` : ''));
+    const feeds = new Array(months.length).fill(0);
+    const wet = new Array(months.length).fill(0);
+    const poop = new Array(months.length).fill(0);
+    const monthKeyMap = {};
+    months.forEach((m, idx) => {
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
+      monthKeyMap[key] = idx;
+    });
+
+    activities.forEach(a => {
+      const d = new Date(a.date || a.startTime);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const idx = monthKeyMap[key];
+      if (idx === undefined) return;
+
+      if (a.eventType === 'breast_feed' || a.eventType === 'formula_feed' || a.eventType === 'express_feed') {
+        feeds[idx]++;
+      } else if (a.eventType === 'wet') {
+        wet[idx]++;
+      } else if (a.eventType === 'poop') {
+        poop[idx]++;
+      } else if (a.eventType === 'diaper_change') {
+        const dt = a.subFields?.diaperType || a.diaperType;
+        const list = Array.isArray(dt) ? dt : (dt ? [dt] : []);
+        let hasType = false;
+        list.forEach(t => {
+          const l = String(t).toLowerCase();
+          if (l.includes('wet')) { wet[idx]++; hasType = true; }
+          if (l.includes('soiled') || l.includes('poop') || l.includes('dirty') || l.includes('bm')) { poop[idx]++; hasType = true; }
+        });
+        if (!hasType) {
+          wet[idx]++;
+        }
+      }
+    });
+
+    return {
+      labels: monthLabels,
+      series: [
+        { name: 'Feeds', color: '#7C5CFC', values: feeds },
+        { name: 'Wet', color: '#4A90D9', values: wet },
+        { name: 'Poop', color: '#A0522D', values: poop }
+      ]
+    };
+  }
+
+  // Daily grouping
   const days = [];
   const curr = new Date(start);
   while (curr <= end) {
@@ -383,7 +485,7 @@ export function buildFeedsOutputsTimelineData(activities = [], period = 'day', r
     curr.setDate(curr.getDate() + 1);
   }
 
-  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${d.getDate()}`);
+  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : (period === 'month' ? `${d.getDate()}` : `${d.getMonth() + 1}/${d.getDate()}`));
   const feeds = new Array(days.length).fill(0);
   const wet = new Array(days.length).fill(0);
   const poop = new Array(days.length).fill(0);
@@ -466,8 +568,83 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
     };
   }
 
-  // Week / Month view: Group by day in Hours
-  const { start, end } = getDateRange(period, referenceDate);
+  // Week / Month / All Time view: Group by day or month in Hours
+  let start, end;
+  if (period === 'all') {
+    if (!activities || activities.length === 0) {
+      return {
+        labels: [],
+        unitSuffix: 'h',
+        series: [
+          { name: 'Sleep', color: '#6C63FF', values: [] },
+          { name: 'Play', color: '#4ECDC4', values: [] },
+          { name: 'Crying', color: '#FF6B6B', values: [] }
+        ]
+      };
+    }
+    const sortedActs = [...activities].sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+    const first = new Date(sortedActs[0].date || sortedActs[0].startTime);
+    first.setHours(0, 0, 0, 0);
+    const last = new Date(sortedActs[sortedActs.length - 1].date || sortedActs[sortedActs.length - 1].startTime);
+    last.setHours(23, 59, 59, 999);
+    start = first;
+    end = last;
+  } else {
+    const range = getDateRange(period, referenceDate);
+    start = range.start;
+    end = range.end;
+  }
+
+  const spanDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+
+  if (spanDays > 31 && period === 'all') {
+    // Group by month for long spans in All Time view
+    const months = [];
+    const currM = new Date(start.getFullYear(), start.getMonth(), 1);
+    const endM = new Date(end.getFullYear(), end.getMonth(), 1);
+    while (currM <= endM) {
+      months.push(new Date(currM));
+      currM.setMonth(currM.getMonth() + 1);
+    }
+    const monthLabels = months.map(m => m.toLocaleDateString(undefined, { month: 'short' }) + (months.length > 12 ? ` '${String(m.getFullYear()).slice(2)}` : ''));
+    const sleepMins = new Array(months.length).fill(0);
+    const playMins = new Array(months.length).fill(0);
+    const cryingMins = new Array(months.length).fill(0);
+    const monthKeyMap = {};
+    months.forEach((m, idx) => {
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`;
+      monthKeyMap[key] = idx;
+    });
+
+    activities.forEach(a => {
+      const d = new Date(a.date || a.startTime);
+      if (isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const idx = monthKeyMap[key];
+      if (idx === undefined) return;
+      const dur = a.duration || 0;
+
+      if (a.eventType === 'sleep') {
+        sleepMins[idx] += dur > 0 ? dur : 60;
+      } else if (a.eventType === 'playtime' || a.eventType === 'tummy_time') {
+        playMins[idx] += dur > 0 ? dur : 15;
+      } else if (a.eventType === 'crying' || a.subFields?.mood === 'fussy' || (a.notes && a.notes.toLowerCase().includes('cry'))) {
+        cryingMins[idx] += dur > 0 ? dur : 10;
+      }
+    });
+
+    return {
+      labels: monthLabels,
+      unitSuffix: 'h',
+      series: [
+        { name: 'Sleep', color: '#6C63FF', values: sleepMins.map(m => Math.round((m / 60) * 10) / 10) },
+        { name: 'Play', color: '#4ECDC4', values: playMins.map(m => Math.round((m / 60) * 10) / 10) },
+        { name: 'Crying', color: '#FF6B6B', values: cryingMins.map(m => Math.round((m / 60) * 10) / 10) }
+      ]
+    };
+  }
+
+  // Daily grouping
   const days = [];
   const curr = new Date(start);
   while (curr <= end) {
@@ -475,7 +652,7 @@ export function buildSleepActivityTimelineData(activities = [], period = 'day', 
     curr.setDate(curr.getDate() + 1);
   }
 
-  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : `${d.getDate()}`);
+  const dayLabels = days.map(d => period === 'week' ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()] : (period === 'month' ? `${d.getDate()}` : `${d.getMonth() + 1}/${d.getDate()}`));
   const sleepMins = new Array(days.length).fill(0);
   const playMins = new Array(days.length).fill(0);
   const cryingMins = new Array(days.length).fill(0);

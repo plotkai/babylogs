@@ -2368,9 +2368,9 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
 
 .summary__period-tab {
   flex: 1;
-  padding: 8px;
+  padding: 7px 4px;
   text-align: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -2379,6 +2379,7 @@ input[type="date"].form-group__input::-webkit-calendar-picker-indicator {
   color: var(--color-text-secondary);
   font-family: var(--font-body);
   transition: all var(--transition-fast);
+  white-space: nowrap;
 }
 
 .summary__period-tab.active {

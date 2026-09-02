@@ -718,10 +718,13 @@ function renderTimelineFilterSummary(activities, eventType) {
   let volumeUnit = settings.unit === 'imperial' ? 'oz' : 'ml';
   let hasVolume = false;
 
-  // Diaper counts
+  // Diaper and output details
   let wetCount = 0;
   let poopCount = 0;
   let dryCount = 0;
+  let diaperChangedCount = 0;
+  let colorCounts = {};
+  let consistencyCounts = {};
 
   // Breast feed counts
   let leftCount = 0;
@@ -770,6 +773,18 @@ function renderTimelineFilterSummary(activities, eventType) {
     }
     if (act.eventType === 'wet') wetCount++;
     if (act.eventType === 'poop') poopCount++;
+
+    if (act.subFields?.diaperChange === true || act.eventType === 'diaper_change') {
+      diaperChangedCount++;
+    }
+    if (act.subFields?.color) {
+      const c = act.subFields.color;
+      colorCounts[c] = (colorCounts[c] || 0) + 1;
+    }
+    if (act.subFields?.consistency) {
+      const cons = act.subFields.consistency;
+      consistencyCounts[cons] = (consistencyCounts[cons] || 0) + 1;
+    }
   });
 
   const avgDurationMins = durations.length > 0 ? Math.round(totalDurationMins / durations.length) : 0;
@@ -799,7 +814,41 @@ function renderTimelineFilterSummary(activities, eventType) {
         <span>Latest: <strong>${formatTime(activities[0].startTime)}</strong></span>
       `;
     }
-  } else if (eventType === 'diaper_change' || eventType === 'diaper' || eventType === 'wet' || eventType === 'poop') {
+  } else if (eventType === 'wet') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value" style="color: var(--color-secondary);">${count}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Wet Diaper' : 'Wet Diapers'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatTime(activities[0].startTime)}</div>
+        <div class="timeline-filter-summary__label">Latest Log</div>
+      </div>
+    `;
+    if (diaperChangedCount > 0) {
+      subHtml = `<span>Diapers changed: <strong>${diaperChangedCount}</strong></span>`;
+    }
+  } else if (eventType === 'poop') {
+    itemsHtml = `
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value" style="color: var(--color-accent);">${count}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Poop Log' : 'Poop Logs'}</div>
+      </div>
+      <div class="timeline-filter-summary__item">
+        <div class="timeline-filter-summary__value">${formatTime(activities[0].startTime)}</div>
+        <div class="timeline-filter-summary__label">Latest Log</div>
+      </div>
+    `;
+    const colorParts = Object.entries(colorCounts).map(([c, n]) => `${c} (${n})`);
+    const textureParts = Object.entries(consistencyCounts).map(([c, n]) => `${c} (${n})`);
+    const subParts = [];
+    if (colorParts.length > 0) subParts.push(`<span>Colors: <strong>${colorParts.join(', ')}</strong></span>`);
+    if (textureParts.length > 0) subParts.push(`<span>Texture: <strong>${textureParts.join(', ')}</strong></span>`);
+    if (diaperChangedCount > 0) subParts.push(`<span>Diapers changed: <strong>${diaperChangedCount}</strong></span>`);
+    if (subParts.length > 0) {
+      subHtml = subParts.join(' • ');
+    }
+  } else if (eventType === 'diaper_change' || eventType === 'diaper') {
     itemsHtml = `
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value">${count}</div>
@@ -837,12 +886,12 @@ function renderTimelineFilterSummary(activities, eventType) {
         <span>Sides: <strong>L: ${leftCount}</strong> • <strong>R: ${rightCount}</strong>${bothCount ? ` • <strong>Both: ${bothCount}</strong>` : ''}</span>
       `;
     }
-  } else if (eventType === 'bottle_feed') {
+  } else if (eventType === 'bottle_feed' || eventType === 'formula_feed' || eventType === 'express_feed') {
     const avgVol = count > 0 && hasVolume ? Math.round(totalVolume / count) : 0;
     itemsHtml = `
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value">${count}</div>
-        <div class="timeline-filter-summary__label">${count === 1 ? 'Bottle' : 'Bottles'}</div>
+        <div class="timeline-filter-summary__label">${count === 1 ? 'Feed' : 'Feeds'}</div>
       </div>
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value">${hasVolume ? `${totalVolume} <span style="font-size:11px;">${volumeUnit}</span>` : formatDuration(totalDurationMins)}</div>
@@ -850,7 +899,7 @@ function renderTimelineFilterSummary(activities, eventType) {
       </div>
       <div class="timeline-filter-summary__item">
         <div class="timeline-filter-summary__value">${hasVolume ? `${avgVol} <span style="font-size:11px;">${volumeUnit}</span>` : formatDuration(avgDurationMins)}</div>
-        <div class="timeline-filter-summary__label">${hasVolume ? 'Avg / Bottle' : 'Avg Time'}</div>
+        <div class="timeline-filter-summary__label">${hasVolume ? 'Avg / Feed' : 'Avg Time'}</div>
       </div>
     `;
   } else if (eventType === 'pumping') {
@@ -1051,7 +1100,8 @@ async function loadTimeline() {
               start: new Date(maxCoveredEndTime),
               end: new Date(nextStartTime),
               duration: gapMinutes,
-              isOngoing: false
+              isOngoing: false,
+              lastActivity: lastCoveringActivity || act
             });
           }
         }
@@ -1173,10 +1223,11 @@ async function loadTimeline() {
   timeline.innerHTML = timelineItems.map((item, i) => {
     if (item.type === 'gap') {
       const gapStartIso = `${formatDateKey(item.start)}T${String(item.start.getHours()).padStart(2, '0')}:${String(item.start.getMinutes()).padStart(2, '0')}`;
-      const showExtendBtn = item.isOngoing && item.lastActivity && isExtensibleActivity(item.lastActivity);
+      const showExtendBtn = !!(item.lastActivity && isExtensibleActivity(item.lastActivity));
       const lastActConfig = showExtendBtn ? (allTypes[item.lastActivity.eventType] || {}) : null;
       const lastActLabel = lastActConfig?.label || 'Activity';
       const lastActEmoji = lastActConfig?.emoji || '⏱';
+      const extendEndIso = item.end ? (item.isOngoing ? '' : item.end.toISOString()) : '';
 
       return `
         <div class="timeline-gap" style="animation-delay: ${i * 0.03}s;">
@@ -1199,7 +1250,7 @@ async function loadTimeline() {
             </div>
             <div class="timeline-gap__actions">
               ${showExtendBtn ? `
-                <button class="timeline-gap__btn timeline-gap__btn--extend btn-extend-gap" data-id="${item.lastActivity.id}" title="Extend ${lastActLabel} to now">
+                <button class="timeline-gap__btn timeline-gap__btn--extend btn-extend-gap" data-id="${item.lastActivity.id}" data-extend-until="${extendEndIso}" title="Extend ${lastActLabel}${item.isOngoing ? ' to now' : ` to ${formatTime(item.end)}`}">
                   <span>${lastActEmoji}</span>
                   <span>Extend ${lastActLabel}</span>
                 </button>
@@ -1256,9 +1307,10 @@ async function loadTimeline() {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
       const id = btn.dataset.id;
+      const extendUntil = btn.dataset.extendUntil;
       const activity = currentActivities.find(a => a.id === id);
       if (activity) {
-        openActivityModal(activity, '', '', true);
+        openActivityModal(activity, '', '', extendUntil || true);
       }
     });
   });
@@ -1294,7 +1346,7 @@ async function updateFeedTimer() {
 
 // ==================== ACTIVITY MODAL ====================
 
-function openActivityModal(activity = null, presetType = '', presetStartTime = '', extendToNow = false) {
+function openActivityModal(activity = null, presetType = '', presetStartTime = '', extendTo = false) {
   editingActivity = activity;
   const overlay = document.getElementById('modal-overlay');
   const title = document.getElementById('modal-title');
@@ -1303,7 +1355,7 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
 
   const typeConfig = activity ? getActivityType(activity.eventType) : null;
   title.textContent = activity
-    ? (extendToNow ? `Extend ${typeConfig?.label || 'Activity'}` : 'Edit Activity')
+    ? (extendTo ? `Extend ${typeConfig?.label || 'Activity'}` : 'Edit Activity')
     : 'Add Activity';
 
   const categories = getActivityCategories();
@@ -1326,10 +1378,16 @@ function openActivityModal(activity = null, presetType = '', presetStartTime = '
 
   let initialDuration;
   if (activity) {
-    if (extendToNow && activity.startTime) {
+    if (extendTo && activity.startTime) {
       const startMs = new Date(activity.startTime).getTime();
-      const nowMs = now.getTime();
-      initialDuration = !isNaN(startMs) ? Math.max(0, Math.round((nowMs - startMs) / (60 * 1000))) : (activity.duration ?? 0);
+      let targetEndMs;
+      if (typeof extendTo === 'string' && extendTo !== 'true') {
+        const parsed = new Date(extendTo).getTime();
+        targetEndMs = isNaN(parsed) ? now.getTime() : parsed;
+      } else {
+        targetEndMs = now.getTime();
+      }
+      initialDuration = !isNaN(startMs) ? Math.max(0, Math.round((targetEndMs - startMs) / (60 * 1000))) : (activity.duration ?? 0);
     } else {
       initialDuration = activity.duration ?? 0;
     }
@@ -3009,6 +3067,7 @@ async function renderSummary() {
           <button class="summary__period-tab active" data-period="day">Day</button>
           <button class="summary__period-tab" data-period="week">Week</button>
           <button class="summary__period-tab" data-period="month">Month</button>
+          <button class="summary__period-tab" data-period="all">All Time</button>
         </div>
 
         <!-- Period / Date Navigator -->
@@ -3056,6 +3115,8 @@ function changeSummaryDate(delta) {
     summaryDate.setDate(summaryDate.getDate() + delta * 7);
   } else if (summaryPeriod === 'month') {
     summaryDate.setMonth(summaryDate.getMonth() + delta);
+  } else if (summaryPeriod === 'all') {
+    return;
   }
   updateSummaryDateNav();
   loadSummaryData(summaryPeriod);
@@ -3063,7 +3124,20 @@ function changeSummaryDate(delta) {
 
 function updateSummaryDateNav() {
   const label = document.getElementById('summary-date-label');
+  const prevBtn = document.getElementById('summary-date-prev');
+  const nextBtn = document.getElementById('summary-date-next');
   if (!label) return;
+
+  if (summaryPeriod === 'all') {
+    if (prevBtn) prevBtn.style.visibility = 'hidden';
+    if (nextBtn) nextBtn.style.visibility = 'hidden';
+    label.innerHTML = `All Time <span class="date-nav__today-badge">All History</span>`;
+    label.onclick = null;
+    return;
+  }
+
+  if (prevBtn) prevBtn.style.visibility = 'visible';
+  if (nextBtn) nextBtn.style.visibility = 'visible';
 
   if (summaryPeriod === 'day') {
     label.innerHTML = `
@@ -3102,7 +3176,7 @@ async function loadSummaryData(period) {
 
   const { start, end } = getDateRange(period, summaryDate);
   const summary = await computeSummary(settings.activeBabyId, start, end);
-  const isCurrent = period === 'day' ? isToday(summaryDate) : period === 'week' ? isThisWeek(summaryDate) : isThisMonth(summaryDate);
+  const isCurrent = period === 'day' ? isToday(summaryDate) : period === 'week' ? isThisWeek(summaryDate) : period === 'month' ? isThisMonth(summaryDate) : false;
   const performance = comparePerformance(summary, baby.dob, period, isCurrent);
 
   const container = document.getElementById('summary-data');
@@ -3214,7 +3288,7 @@ async function loadSummaryData(period) {
     <div class="summary__card">
       <div class="summary__card-title">📈 Milestone Targets — ${performance.bracketLabel}</div>
       <p style="font-size: 12px; color: var(--color-text-secondary); margin-top: -6px; margin-bottom: 12px;">
-        ${period === 'day' ? (isCurrent ? 'Milestone targets for today:' : 'Milestone targets for this day:') : 'Daily averages vs recommended milestone targets:'}
+        ${period === 'day' ? (isCurrent ? 'Milestone targets for today:' : 'Milestone targets for this day:') : (period === 'all' ? 'All-time daily averages vs recommended milestone targets:' : 'Daily averages vs recommended milestone targets:')}
       </p>
       ${performance.metrics.map(m => `
         <div class="perf-metric perf-metric--${m.status}">
@@ -3242,7 +3316,7 @@ async function loadSummaryData(period) {
     <div class="summary__card">
       <div class="summary__card-title">
         🗓️ Care & Routine Tracker
-        <span style="font-size: 11px; font-weight: normal; color: var(--color-text-secondary); margin-left: auto;">${period === 'week' ? 'Weekly Matrix' : 'Monthly Matrix'}</span>
+        <span style="font-size: 11px; font-weight: normal; color: var(--color-text-secondary); margin-left: auto;">${period === 'week' ? 'Weekly Matrix' : (period === 'month' ? 'Monthly Matrix' : 'All Time')}</span>
       </div>
 
       <!-- Care Counters -->
@@ -3261,6 +3335,7 @@ async function loadSummaryData(period) {
         </div>
       </div>
 
+      ${period === 'week' || period === 'month' ? `
       <!-- Legend -->
       <div class="care-calendar__legend">
         <span class="care-legend-item"><span class="care-dot care-dot--bath"></span> Bath</span>
@@ -3273,6 +3348,7 @@ async function loadSummaryData(period) {
       ${period === 'week'
         ? renderWeekCareCalendar(start, end, summary.healthCare.dailyCareMap)
         : renderMonthCareCalendar(start, end, summary.healthCare.dailyCareMap)}
+      ` : ''}
 
       <!-- Medicine Details -->
       ${summary.healthCare.medicines.length > 0 ? `
@@ -3287,6 +3363,7 @@ async function loadSummaryData(period) {
         </div>
       ` : ''}
     </div>
+    ` : ''}
 
     <!-- Weight Trajectory Tracker (Week & Month views) -->
     <div class="summary__card">
@@ -3330,7 +3407,7 @@ async function loadSummaryData(period) {
         </div>
       ` : `
         <div style="text-align: center; padding: 18px 10px; color: var(--color-text-secondary); font-size: 13px;">
-          No weight checks logged for this ${period}.<br>
+          No weight checks logged${period === 'all' ? ' yet' : ` for this ${period}`}.<br>
           <span style="font-size: 11px; opacity: 0.8; display: inline-block; margin-top: 4px;">Log a Weight Check from the <strong>＋</strong> menu to visualize growth trajectory.</span>
         </div>
       `}
